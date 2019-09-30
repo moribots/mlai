@@ -6,7 +6,7 @@ Python 2.7 PEP8 Style
 Code submission for Homework 0 Part A
 Machine Learning & Artificial Intelligence for Robotics
 Data Set 0
-Particle Filter
+Particle Filter (used in Part B)
 
 Maurice Rahme
 Student ID: 3219435
@@ -23,17 +23,51 @@ class Robot():
     def __init__(self, position):
         self.position = position  # x, y, theta at world origin
 
-    def move(self, control, t_next):
+    def move(self, control, t_next, noise_matrix):
         # Using abs for compatibility with a2 and a3
+        """
+        Note that noise is added to all motion: x,y,thetha
+        So it is assumed that during pure rotation, the robot may
+        slide, and its x,y position may change as a result
+        """
         dt = np.abs(control[0] - t_next)
-        x = self.position[0] + control[1] * np.cos(self.position[2]) * dt
-        y = self.position[1] + control[1] * np.sin(self.position[2]) * dt
-        theta = self.position[2] + control[2] * dt
+        x = self.position[0] + control[1] * np.cos(
+            self.position[2]) * dt + noise_matrix[0][0]
+        y = self.position[1] + control[1] * np.sin(
+            self.position[2]) * dt + noise_matrix[1][1]
+        theta = self.position[2] + control[2] * dt + noise_matrix[2][2]
         self.position = [x, y, theta]
+
+    def measure_a6(self, position, landmark, noise_option):
+        # Use standard deviation in ds0_Landmark_Groundtruth.dat
+        if noise_option == 'y':
+            mu = 0
+            sigma_x = landmark[3]
+            sigma_y = landmark[4]
+            cov_x = (np.random.normal(mu, sigma_x))**2
+            cov_y = (np.random.normal(mu, sigma_y))**2
+        else:
+            cov_x = 0
+            cov_y = 0
+
+        # Measure Range and Bearing
+        r2l_range = np.sqrt((position[0] - landmark[1] + cov_x)**2 +
+                            (position[1] - landmark[2] + cov_y)**2)
+        # arctan2 has built-in logic to account for quadrants
+        r2l_bearing = np.arctan2(
+            (landmark[2] + cov_y - position[1]),
+            (landmark[1] + cov_x - position[0]))
+        # Measure x,y of landmark based on Range and Bearing
+        x_l = position[0] + np.cos(r2l_bearing) * r2l_range
+        y_l = position[1] + np.sin(r2l_bearing) * r2l_range
+        rb = [r2l_range, r2l_bearing]
+        xy = [x_l, y_l]
+        rbxy = [rb, xy]
+        return rbxy
 
 
 # Exercise 2, plot robot movement using given commands
-def a2():
+def a2(noise_option):
     # Initialize Robot instance
     position = [0, 0, 0]
     robot = Robot(position)
@@ -43,17 +77,33 @@ def a2():
         position, [1, 0.5, 0], [1, 0, -1 / (2 * np.pi)], [1, 0.5, 0],
         [1, 0, 1 / (2 * np.pi)], [1, 0.5, 0]
     ]
+    # Initialize Noise Model
+    if noise_option == 'y':
+        # noise
+        mu = 0
+        # Note Viscon std_dev is 0.003, so assume worse than this
+        sigma_x = 0.005
+        x_noise = (np.random.normal(mu, sigma_x))**2  # square std for cov
+        sigma_y = 0.005
+        y_noise = (np.random.normal(mu, sigma_y))**2
+        sigma_theta = 0.012
+        theta_noise = (np.random.normal(mu, sigma_theta))**2
+        noise_matrix = [[x_noise, 0, 0], [0, y_noise, 0], [0, 0, theta_noise]]
+    else:
+        # no noise
+        noise_matrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
 
     # Initialize Plot
-    plt.xlim((-0.2, 2))
-    plt.ylim((-0.5, 0.2))
+    plt.autoscale(enable=True, axis='both', tight=None)
     plt.title('Motion Iteration: 0')
     plt.ylabel('y [m]')
     plt.xlabel('x [m]')
 
     for t in range(len(control)):
         # Method in Robot class which updates pose based on controls
-        robot.move(control[t], 0)  # No dt_prev here since dt is defined
+        # No dt_prev here since dt is defined
+        # Noise matrix is optional based on user input
+        robot.move(control[t], 0, noise_matrix)
         path.append(robot.position)
         plt.title('Motion Iteration: ' + str(t - 1))
         if t == 0:
@@ -73,9 +123,26 @@ def a2():
 
 
 # Exercise 3, plot robot movement using Odometry.dat
-def a3(odometry, ground_truth, response):
+def a3(odometry, ground_truth, range_response, noise_option):
     position = [1.29812900, 1.88315210,
                 2.82870000]  # Set equal to Ground Truth Initial
+    # Initialize Noise Model
+    if noise_option == 'y':
+        # noise
+        mu = 0
+        # Note Viscon std_dev is 0.003, so assume worse than this
+        sigma_x = 0.005
+        x_noise = (np.random.normal(mu, sigma_x))**2  # square std for cov
+        sigma_y = 0.005
+        y_noise = (np.random.normal(mu, sigma_y))**2
+        sigma_theta = 0.012
+        theta_noise = (np.random.normal(mu, sigma_theta))**2
+        noise_matrix = [[x_noise, 0, 0], [0, y_noise, 0], [0, 0, theta_noise]]
+    else:
+        # no noise
+        noise_matrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+
+    # Initialize Robot Instance
     robot = Robot(position)
     path = [robot.position]
     control = odometry
@@ -83,22 +150,11 @@ def a3(odometry, ground_truth, response):
     for t in range(len(control) - 1):
         t_next = control[t + 1][0]
 
-        robot.move(control[t], t_next)
+        robot.move(control[t], t_next, noise_matrix)
         path.append(robot.position)
 
     # Initialize Plot
-    if response == 'y':
-        xmin = 0
-        xmax = 2
-        ymin = 1
-        ymax = 2.8
-    else:
-        xmin = -1
-        xmax = 12
-        ymin = -3.5
-        ymax = 3.5
-    plt.xlim((xmin, xmax))
-    plt.ylim((ymin, ymax))
+    plt.autoscale(enable=True, axis='both', tight=None)
     plt.title('Dead Reckoning Pose Estimation VS. Ground Truth Data')
     plt.ylabel('y [m]')
     plt.xlabel('x [m]')
@@ -111,8 +167,9 @@ def a3(odometry, ground_truth, response):
     # Plot Ground Truth Data
     ground_truth_x = [x[1] for x in ground_truth]
     ground_truth_y = [y[2] for y in ground_truth]
+
     # Optional Range Reduction
-    if response == 'y':
+    if range_response == 'y':
 
         # Dead Reckoning
         path_xs = []
@@ -178,6 +235,43 @@ def a3(odometry, ground_truth, response):
     return robot
 
 
+# Exercise 6, test measurement model
+def a6(landmark_groundtruth, noise_option):
+    # Initialize Robot Instance
+    position = [0, 0, 0]
+    robot = Robot(position)
+    # positions and landmark #s given in exercise
+    positions = [[2, 3, 0], [0, 3, 0], [1, -2, 0]]
+    landmarks = [6, 13, 17]
+    for l in range(len(landmark_groundtruth)):
+        if landmark_groundtruth[l][0] == landmarks[0]:
+            subject_6 = landmark_groundtruth[l]
+        elif landmark_groundtruth[l][0] == landmarks[1]:
+            subject_13 = landmark_groundtruth[l]
+        elif landmark_groundtruth[l][0] == landmarks[2]:
+            subject_17 = landmark_groundtruth[l]
+
+    landmark_list = [subject_6, subject_13, subject_17]
+
+    rb_list = []
+    xy_list = []
+    for p in range(len(positions)):
+        rbxy = robot.measure_a6(positions[p], landmark_list[p], noise_option)
+        rb = rbxy[0]
+        xy = rbxy[1]
+        rb_list.append(rb)
+        xy_list.append(xy)
+    print(xy_list)
+
+    err_list = []
+    for i in range(len(xy_list)):
+        x_err = abs(xy_list[i][0] - landmark_list[i][1])
+        y_err = abs(xy_list[i][1] - landmark_list[i][2])
+        xy_err = [x_err, y_err]
+        err_list.append(xy_err)
+    print(err_list)
+
+
 # Read .dat Files using Pandas
 def read_dat(start_index, file_path, usecols):
     # Read Data using Pandas
@@ -207,6 +301,9 @@ def main():
     ground_truth = read_dat(
         3, "ds0/ds0_Groundtruth.dat",
         ["Time [s]", "x [m]", "y [m]", "orientation [rad]"])
+    landmark_groundtruth = read_dat(
+        3, "ds0/ds0_Landmark_Groundtruth.dat",
+        ["Subject #", "x [m]", "y [m]", "x std-dev [m]", "y std-dev [m]"])
     # Select Exercise
     try:
         exercise = raw_input('Select an exercise [2,3,6]')
@@ -217,12 +314,18 @@ def main():
         print('Please select exercise 2, 3, or 6.')
     if exercise == '2':
         # Exercise 2
-        a2()
+        noise_option = raw_input('Add noise to the motion model? [y/n]')
+        a2(noise_option)
     elif exercise == '3':
         # Exercise 3
-        response = raw_input(
+        noise_option = raw_input('Add noise to the motion model? [y/n]')
+        range_response = raw_input(
             'Show the first 2000 steps (start of major divergence)? [y/n]')
-        a3(odometry, ground_truth, response)
+        a3(odometry, ground_truth, range_response, noise_option)
+    elif exercise == '6':
+        # Exercise 6
+        noise_option = raw_input('Add noise to the measurement model? [y/n]')
+        a6(landmark_groundtruth, noise_option)
 
     plt.show()
 
