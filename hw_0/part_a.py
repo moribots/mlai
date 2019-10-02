@@ -42,10 +42,18 @@ class Robot():
         # Use standard deviation in ds0_Landmark_Groundtruth.dat
         if noise_option == 'y':
             mu = 0
+            """
+            The standard deviation of the Viscon measurement
+            for the landmarks (ds0_Landmark_Groundtruth.dat)
+            for each landmark is used to build the noise matrix
+            of the measurement model
+            """
             sigma_x = landmark[3]
             sigma_y = landmark[4]
             cov_x = (np.random.normal(mu, sigma_x))**2
             cov_y = (np.random.normal(mu, sigma_y))**2
+            print('The added noise in x and y is {} and {}'.format(
+                cov_x, cov_y))
         else:
             cov_x = 0
             cov_y = 0
@@ -54,9 +62,8 @@ class Robot():
         r2l_range = np.sqrt((position[0] - landmark[1] + cov_x)**2 +
                             (position[1] - landmark[2] + cov_y)**2)
         # arctan2 has built-in logic to account for quadrants
-        r2l_bearing = np.arctan2(
-            (landmark[2] + cov_y - position[1]),
-            (landmark[1] + cov_x - position[0]))
+        r2l_bearing = np.arctan2((landmark[2] + cov_y - position[1]),
+                                 (landmark[1] + cov_x - position[0]))
         # Measure x,y of landmark based on Range and Bearing
         x_l = position[0] + np.cos(r2l_bearing) * r2l_range
         y_l = position[1] + np.sin(r2l_bearing) * r2l_range
@@ -89,6 +96,7 @@ def a2(noise_option):
         sigma_theta = 0.012
         theta_noise = (np.random.normal(mu, sigma_theta))**2
         noise_matrix = [[x_noise, 0, 0], [0, y_noise, 0], [0, 0, theta_noise]]
+        print('The added noise in x,y,theta is: {}'.format(noise_matrix))
     else:
         # no noise
         noise_matrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
@@ -138,6 +146,7 @@ def a3(odometry, ground_truth, range_response, noise_option):
         sigma_theta = 0.012
         theta_noise = (np.random.normal(mu, sigma_theta))**2
         noise_matrix = [[x_noise, 0, 0], [0, y_noise, 0], [0, 0, theta_noise]]
+        print('The added noise in x,y,theta is: {}'.format(noise_matrix))
     else:
         # no noise
         noise_matrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
@@ -243,15 +252,12 @@ def a6(landmark_groundtruth, noise_option):
     # positions and landmark #s given in exercise
     positions = [[2, 3, 0], [0, 3, 0], [1, -2, 0]]
     landmarks = [6, 13, 17]
-    for l in range(len(landmark_groundtruth)):
-        if landmark_groundtruth[l][0] == landmarks[0]:
-            subject_6 = landmark_groundtruth[l]
-        elif landmark_groundtruth[l][0] == landmarks[1]:
-            subject_13 = landmark_groundtruth[l]
-        elif landmark_groundtruth[l][0] == landmarks[2]:
-            subject_17 = landmark_groundtruth[l]
+    landmark_list = []
 
-    landmark_list = [subject_6, subject_13, subject_17]
+    for l in range(len(landmarks)):
+        for lg in range(len(landmark_groundtruth)):
+            if landmark_groundtruth[lg][0] == landmarks[l]:
+                landmark_list.append(landmark_groundtruth[lg])
 
     rb_list = []
     xy_list = []
@@ -261,7 +267,6 @@ def a6(landmark_groundtruth, noise_option):
         xy = rbxy[1]
         rb_list.append(rb)
         xy_list.append(xy)
-    print(xy_list)
 
     err_list = []
     for i in range(len(xy_list)):
@@ -269,7 +274,13 @@ def a6(landmark_groundtruth, noise_option):
         y_err = abs(xy_list[i][1] - landmark_list[i][2])
         xy_err = [x_err, y_err]
         err_list.append(xy_err)
-    print(err_list)
+    for p in range(len(err_list)):
+        print('Error in x and y for measurement {}: {} \n'.format(
+            p + 1, err_list[p]))
+    if noise_option != 'y':
+        print(
+            'Note that a nonzero, but infinitesmal (E-16) value may' +
+            ' be returned due to the rounding of numpy.trigonometry functions')
 
 
 # Read .dat Files using Pandas
@@ -305,13 +316,7 @@ def main():
         3, "ds0/ds0_Landmark_Groundtruth.dat",
         ["Subject #", "x [m]", "y [m]", "x std-dev [m]", "y std-dev [m]"])
     # Select Exercise
-    try:
-        exercise = raw_input('Select an exercise [2,3,6]')
-        if exercise != '3' or '3' or '6':
-            raise ValueError(
-                'You did not select an available exercise. Please try again.')
-    except ValueError:
-        print('Please select exercise 2, 3, or 6.')
+    exercise = raw_input('Select an exercise [2,3,6]')
     if exercise == '2':
         # Exercise 2
         noise_option = raw_input('Add noise to the motion model? [y/n]')
@@ -326,6 +331,8 @@ def main():
         # Exercise 6
         noise_option = raw_input('Add noise to the measurement model? [y/n]')
         a6(landmark_groundtruth, noise_option)
+    else:
+        print('You did not select an exercise, please try again.')
 
     plt.show()
 
