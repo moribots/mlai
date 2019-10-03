@@ -63,8 +63,8 @@ class Robot():
         # Measure Range and Bearing
         # Note that cov_x and cov_y are added to the landmark cartersian
         # coordinates since this is the origin of the measured noise
-        r2l_range = np.sqrt((position[0] - landmark[1] + cov_x)**2 +
-                            (position[1] - landmark[2] + cov_y)**2)
+        r2l_range = np.sqrt((position[0] - landmark[1] - cov_x)**2 +
+                            (position[1] - landmark[2] - cov_y)**2)
         # arctan2 has built-in logic to account for quadrants
         r2l_bearing = np.arctan2((landmark[2] + cov_y - position[1]),
                                  (landmark[1] + cov_x - position[0]))
@@ -279,8 +279,10 @@ def a6(landmark_groundtruth, noise_option):
         xy_err = [x_err, y_err]
         err_list.append(xy_err)
     for p in range(len(err_list)):
-        print('Error in x and y for measurement {}: {} \n'.format(
-            p + 1, err_list[p]))
+        print('Measurement {}:'.format(p + 1))
+        print('Error in x[m] and y[m]: {}'.format(err_list[p]))
+        print('Range[m]: {}'.format(rb_list[p][0]))
+        print('Bearing[m]: {}\n'.format(rb_list[p][0]))
     if noise_option != 'y':
         print(
             'Note that a nonzero, but infinitesmal (E-16) value may' +
