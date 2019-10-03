@@ -8,6 +8,8 @@ Machine Learning & Artificial Intelligence for Robotics
 Data Set 0
 Particle Filter (used in Part B)
 
+Data interpreted with Python's Pandas library
+
 Maurice Rahme
 Student ID: 3219435
 mauricerahme2020@u.northwestern.edu
@@ -59,6 +61,8 @@ class Robot():
             cov_y = 0
 
         # Measure Range and Bearing
+        # Note that cov_x and cov_y are added to the landmark cartersian
+        # coordinates since this is the origin of the measured noise
         r2l_range = np.sqrt((position[0] - landmark[1] + cov_x)**2 +
                             (position[1] - landmark[2] + cov_y)**2)
         # arctan2 has built-in logic to account for quadrants
