@@ -13,6 +13,7 @@ The libraries used for this code are:
 * ``` Numpy ```
 * ``` Matplotlib ```
 * ``` Pandas ``` (mentioned in my email)
+**PLEASE MAKE SURE TO RUN THE FILE IN THE ```hw_0``` DIRECTORY ON YOUR TERMINAL**
 ****
 ## Coded Exercises
 When you run ``` ./part_a.py ``` (after writing the command: ``` chmod +x part_a.py ```), you will be prompted to select an exercise: 2, 3, or 6. The numbering corresponds to the labeling in the homework description. You can also run the executable using ``` run part_a.py ```.
