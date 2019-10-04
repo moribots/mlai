@@ -282,7 +282,7 @@ def a6(landmark_groundtruth, noise_option):
         print('Measurement {}:'.format(p + 1))
         print('Error in x[m] and y[m]: {}'.format(err_list[p]))
         print('Range[m]: {}'.format(rb_list[p][0]))
-        print('Bearing[m]: {}\n'.format(rb_list[p][0]))
+        print('Bearing[m]: {}\n'.format(rb_list[p][1]))
     if noise_option != 'y':
         print(
             'Note that a nonzero, but infinitesmal (E-16) value may' +
