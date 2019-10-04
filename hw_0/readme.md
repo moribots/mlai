@@ -35,7 +35,7 @@ After selecting your response for whether or not to include noise in the model, 
 
 The plot is animated to show the subtle change in behaviour in case noise is implemented; you will notice that the noise-inclusive plot may change directions thanks to the added noise on $$\theta$$. The starting point is indicated by a black dot, the intermediate point by black diamonds, and the end point by a purple dot. 
 
-![An example output for exercise 2]('ex2.png')
+![An example output for exercise 2](ex2.png)
 
 ### Exercise 3:
 #### Noise & Motion Models:
@@ -48,8 +48,8 @@ The ``` Robot ``` Class is reused in this exercise, however, the ```controls``` 
 
 In the resultant plot, the starting point for both the Dead Reckoning and Ground Truth states is shown as a yellow dot. The Dead Reckoning path is plotted in black, and the Ground Truth path in green. Both paths end with a purple marker in their 2000-iteration and full path plots. 
 
-![An example output for exercise 3 with limited iterations to show divergence]('ex3_lim.png')
-![An example output for exercise 3 with all iterations]('ex3.png')
+![An example output for exercise 3 with limited iterations to show divergence](ex3_lim.png)
+![An example output for exercise 3 with all iterations](ex3.png)
 
 ### Exercise 6:
 ### Measurement Model:
@@ -72,7 +72,7 @@ The ```Robot``` Class has an additional method, ```measure_a6()```, which comput
 
 The pose data used here as well as the chosen landmarks are provided in the homework assignment. 
 
-![An example output for exercise 6 returning measurement error]('ex6_noise.png')
+![An example output for exercise 6 returning measurement error](ex6_noise.png)
 
 ## Final Note:
 There are various screenshots of code output in the hw_0 file with relevant names in case the code malfunctions. 
