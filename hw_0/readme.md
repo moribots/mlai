@@ -72,7 +72,7 @@ The ```Robot``` Class has an additional method, ```measure_a6()```, which comput
 
 The pose data used here as well as the chosen landmarks are provided in the homework assignment. 
 
-![An example output for exercise 6 returning measurement error](ex6_noise.png)
+![An example output for exercise 6 returning measurement error](ex6.png)
 
 ## Final Note:
 There are various screenshots of code output in the hw_0 file with relevant names in case the code malfunctions. 
