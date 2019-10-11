@@ -13,17 +13,17 @@ Student ID: 3219435
 mauricerahme2020@u.northwestern.edu
 """
 
+from __future__ import division
 import numpy as np
 import math
 import scipy as sp
 import matplotlib.pyplot as plt
 import pandas as pd
-from __future__ import division
 
 
 # Robot class contains position attributes (x, y, theta) and move method
 class Robot():
-    def __init__(self, position, num_particles, sense_noise, motion_noise):
+    def __init__(self, position, num_particles, sensor_noise, motion_noise):
         self.position = position  # x, y, theta at world origin
         self.M = num_particles  # number of particles used in filter
         # empty numpy array w/N rows, 4 columns for x,y,theta, weight
@@ -31,7 +31,7 @@ class Robot():
         # set initial particle weights (4th col) to be all equal and sum to 1
         self.particles[:, 3] = 1 / self.M
         # Initialize sensor noise
-        self.sensor_noise = sense_noise
+        self.sensor_noise = sensor_noise
         # Initialize motion noise
         self.motion_noise = motion_noise
 
@@ -147,8 +147,6 @@ class Robot():
         """
         # Initialize list for landmarks we measured
         landmarks = []
-        # Initialize rb_m to hold rb lists for m measurements
-        rb_m = []
         # Initialize rb with range, bearing columns
         rb = np.empty(self.M, 2)
         # Initialize dist_weights as intermediate weight array
@@ -156,6 +154,8 @@ class Robot():
         dist_weights = np.ones(self.M, 1)
         # Similarly for bearings weight
         bear_weights = np.ones(self.M, 1)
+        # Make another array for the weights for m measurements to avg later
+        weights = []
         # For each measurement on valid timestep, record
         # measured landmark attributes and compare
         # predicted range/bearing of each particle wrt it
@@ -167,16 +167,19 @@ class Robot():
             # compute range, bearing for each particles
             rb = self.measure(landmarks[m])
             # calculate weight of each particle for landmark m - distance
-            dist_weights[:, 0] = exp(-((rb[:, 0] - measurements[2])**2) / (self.sensor_noise**2) / 2.0) / np.sqrt(2.0 * np.pi * (self.sensor_noise**2))
-            bear_weights[:, 0] = exp(-((rb[:, 1] - measurements[3])**2) / (self.sensor_noise**2) / 2.0) / np.sqrt(2.0 * np.pi * (self.sensor_noise**2))
-            # store in array for each measurement m
-            np.append(rb_m, rb)
-
-        #CONSIDER MULTIPLE LANDMARK CASE! AVERAGE P WEIGHT FOR ALL LANDMARKS AS FINAL WEIGHT!
-        # CONSIDER TIMESTAMP MEASUREMENT ISSUE, TAKE CLOSEST ONE WITHIN THRESHOLD OF SECONDS
-        # BASED ON LAST ISSUED VELICITY COMMAND
-        # measure what range and bearing should be in each particle, and compare to actual measured range/bearing
-        
+            dist_weights[:, 0] = np.exp(
+                -((rb[:, 0] - measurements[2])**2) /
+                (self.sensor_noise**2) / 2.0) / np.sqrt(2.0 * np.pi *
+                                                        (self.sensor_noise**2))
+            bear_weights[:, 0] = np.exp(
+                -((rb[:, 1] - measurements[3])**2) /
+                (self.sensor_noise**2) / 2.0) / np.sqrt(2.0 * np.pi *
+                                                        (self.sensor_noise**2))
+            # take average across rows and store for each measurement m
+            weights.append(
+                np.mean(np.array([dist_weights, bear_weights]), axis=0))
+        # average weight for m columns for m measurements
+        self.particles[:, 3] = weights.mean(axis=1)
 
 
 # Read .dat Files using Pandas
@@ -215,6 +218,15 @@ def main():
         3, "ds0/ds0_Measurement.dat",
         ["Time [s]", "Subject #", "range [m]", "bearing [rad]"])
 
+
+    position = [1.29812900, 1.88315210,
+                2.82870000]  # Set equal to Ground Truth Initial
+    sensor_noise = 0.00017939
+    motion_noise = 0.00017939
+    robot = Robot(position, 10, sensor_noise, motion_noise)
+    std = [0.00017939, 0.00017939, 0.00017939]
+    robot.init_known_particles(std)
+    print(robot.particles.shape)
 
 if __name__ == "__main__":
     main()
