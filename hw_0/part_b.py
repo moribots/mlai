@@ -34,6 +34,8 @@ class Robot():
         self.sensor_noise = sensor_noise
         # Initialize motion noise
         self.motion_noise = motion_noise
+        # Record last measurement to avoid reading list from scratch
+        self.last_measurement = 0
 
     def measure(self, landmark):
         """
@@ -218,15 +220,36 @@ def main():
         3, "ds0/ds0_Measurement.dat",
         ["Time [s]", "Subject #", "range [m]", "bearing [rad]"])
 
-
     position = [1.29812900, 1.88315210,
                 2.82870000]  # Set equal to Ground Truth Initial
     sensor_noise = 0.00017939
     motion_noise = 0.00017939
-    robot = Robot(position, 10, sensor_noise, motion_noise)
     std = [0.00017939, 0.00017939, 0.00017939]
+    M = 2
+    # Initialize robot instance of Robot class
+    robot = Robot(position, M, sensor_noise, motion_noise)
+    # Initialise particles normally distributed around starting state
     robot.init_known_particles(std)
-    print(robot.particles.shape)
+
+    path = []
+    # Loop for all odometry commands
+    # REPLACE RANGE WITH 0 --> LEN CONTROLS -1
+    for t in range(3, 5):
+        t_next = odometry[t + 1][0]
+        t_current = odometry[t][0]
+        robot.fwd_prop(odometry[t], t_next)
+        # path.append(robot.particles.tolist())
+
+        # Initialize measurements list used in this t
+        measurements = []
+        # If landmark timestamp within two control stamps (future-curr), use it
+        # look through measurements to see what timestamps match
+        for m in range(robot.last_measurement, len(measurement)):
+            if measurement[m][0] >= t_current and measurement[m][0] <= t_next:
+                robot.last_measurement = m  # pick up from here next time
+                measurements.append(measurement[0])
+        robot.weight(landmark_groundtruth, measurements)
+
 
 if __name__ == "__main__":
     main()
