@@ -339,6 +339,15 @@ def main():
         a6(landmark_groundtruth, noise_option)
     else:
         print('You did not select an exercise, please try again.')
+    # Calculating average dt
+    diff_list = []
+    for l in range(len(odometry) - 1):
+        diff = odometry[l + 1][0] - odometry[l][0]
+        diff_list.append(diff)
+    average_dt = sum(diff_list) / len(diff_list)
+    average_hz = 1 / average_dt
+    print(average_dt)
+    print(average_hz)
 
     plt.show()
 

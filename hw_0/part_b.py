@@ -14,37 +14,46 @@ mauricerahme2020@u.northwestern.edu
 """
 
 import numpy as np
+import math
 import scipy as sp
 import matplotlib.pyplot as plt
 import pandas as pd
-from __future__ import division, print_function
+from __future__ import division
 
 
 # Robot class contains position attributes (x, y, theta) and move method
 class Robot():
-    def __init__(self, position, num_particles):
+    def __init__(self, position, num_particles, sense_noise, motion_noise):
         self.position = position  # x, y, theta at world origin
         self.M = num_particles  # number of particles used in filter
-        # empty numpy array w/N rows, 3 columns for x,y,theta
-        self.particles = np.empty((self.M, 3))
-        # set initial particle weights to be all equal normalised to sum to 1
-        self.weights = np.ones((self.M, 3)) * 1 / self.M
+        # empty numpy array w/N rows, 4 columns for x,y,theta, weight
+        self.particles = np.zeros((self.M, 4))
+        # set initial particle weights (4th col) to be all equal and sum to 1
+        self.particles[:, 3] = 1 / self.M
+        # Initialize sensor noise
+        self.sensor_noise = sense_noise
+        # Initialize motion noise
+        self.motion_noise = motion_noise
 
-    def measure(self, position, landmark):
+    def measure(self, landmark):
         """
         FILL DOCSTRING
         """
-        # Retrieve range/bearing for each particle based on known measured landmark and its std
+        # Retrieve range/bearing for a particle based on known measured landmark and its std
+        mu = 0
         sigma_x = landmark[3]
         sigma_y = landmark[4]
         cov_x = (np.random.normal(mu, sigma_x))**2
         cov_y = (np.random.normal(mu, sigma_y))**2
-
-        r2l_range = np.sqrt((position[0] - landmark[1] - cov_x)**2 +
-                            (position[1] - landmark[2] - cov_y)**2)
+        r2l_range = np.zeros(self.M)
+        r2l_range[:] = np.sqrt(
+            np.power(self.particles[:, 0] - landmark[1] - cov_x, 2) +
+            np.power(self.particles[:, 1] - landmark[1] - cov_y, 2))
         # arctan2 has built-in logic to account for quadrants
-        r2l_bearing = np.arctan2((landmark[2] + cov_y - position[1]),
-                                 (landmark[1] + cov_x - position[0]))
+        r2l_bearing = np.zeros(self.M)
+        r2l_bearing[:] = np.arctan2(
+            (landmark[2] + cov_y - self.particles[:, 1]),
+            (landmark[1] + cov_x - self.particles[:, 0]))
         rb = [r2l_range, r2l_bearing]
         return rb
 
@@ -79,7 +88,7 @@ class Robot():
 
         return self.particles
 
-    def init_known_particles(self, mean, std):
+    def init_known_particles(self, std):
         """ USE IF INITIAL CONDITION (STATE) KNOWN
 
             Generates a gaussian distribution of particles about the
@@ -87,7 +96,7 @@ class Robot():
             dictated in Class Initialisation.
 
             Args:
-                mean ~ list: initial state (x, y, theta)
+                self.position (mean) ~ list: initial state (x, y, theta)
                 std ~ list: standard deviation (x, y, theta)
 
             Returns:
@@ -95,25 +104,27 @@ class Robot():
                 Gaussian Distribution
         """
         # populate x column, index 0
-        self.particles[:, 0] = mean[0] + np.random.normal(0, std[0], self.M)
+        self.particles[:, 0] = self.position[0] + np.random.normal(
+            0, std[0], self.M)
         # populate y column, index 1
-        self.particles[:, 1] = mean[1] + np.random.normal(0, std[1], self.M)
+        self.particles[:, 1] = self.position[1] + np.random.normal(
+            0, std[1], self.M)
         # populate theta column, index 2 and bound to 0-2pi
         self.particles[:, 2] = (
-            mean[2] + np.random.normal(0, std[2], self.M)) % 2 * np.pi
+            self.position[2] + np.random.normal(0, std[2], self.M)) % 2 * np.pi
 
         return self.particles
 
-    def fwd_prop(self, control, t_next, std):
+    def fwd_prop(self, control, t_next):
         """
         FILL DOCSTRING
         """
         dt = np.abs(control[0] - t_next)
 
         # std[0] is linear control noise
-        v_control = control[1] * (1 + std[0])
+        v_control = control[1] * (1 + self.motion_noise)
         # std[1] is angular control noise
-        w_control = control[2] * (1 + std[1])
+        w_control = control[2] * (1 + self.motion_noise)
 
         if w_control == 0:
             # only linear velocity
@@ -130,14 +141,42 @@ class Robot():
                 np.cos(self.particles[:, 2] + w_control * dt))
             self.particles[:, 2] += w_control * dt
 
-    def weight(self, landmark_groundtruth, measurement):
+    def weight(self, landmark_groundtruth, measurements):
         """
         FILL DOCSTRING
         """
+        # Initialize list for landmarks we measured
+        landmarks = []
+        # Initialize rb_m to hold rb lists for m measurements
+        rb_m = []
+        # Initialize rb with range, bearing columns
+        rb = np.empty(self.M, 2)
+        # Initialize dist_weights as intermediate weight array
+        # to be averaged later for each landmark result
+        dist_weights = np.ones(self.M, 1)
+        # Similarly for bearings weight
+        bear_weights = np.ones(self.M, 1)
+        # For each measurement on valid timestep, record
+        # measured landmark attributes and compare
+        # predicted range/bearing of each particle wrt it
+        for m in range(len(measurements)):
+            # extract landmark attributes for each measurement
+            for lg in range(len(landmark_groundtruth)):
+                if landmark_groundtruth[lg][0] == measurements[lg][1]:
+                    landmarks.append(landmark_groundtruth[lg])
+            # compute range, bearing for each particles
+            rb = self.measure(landmarks[m])
+            # calculate weight of each particle for landmark m - distance
+            dist_weights[:, 0] = exp(-((rb[:, 0] - measurements[2])**2) / (self.sensor_noise**2) / 2.0) / np.sqrt(2.0 * np.pi * (self.sensor_noise**2))
+            bear_weights[:, 0] = exp(-((rb[:, 1] - measurements[3])**2) / (self.sensor_noise**2) / 2.0) / np.sqrt(2.0 * np.pi * (self.sensor_noise**2))
+            # store in array for each measurement m
+            np.append(rb_m, rb)
+
+        #CONSIDER MULTIPLE LANDMARK CASE! AVERAGE P WEIGHT FOR ALL LANDMARKS AS FINAL WEIGHT!
+        # CONSIDER TIMESTAMP MEASUREMENT ISSUE, TAKE CLOSEST ONE WITHIN THRESHOLD OF SECONDS
+        # BASED ON LAST ISSUED VELICITY COMMAND
         # measure what range and bearing should be in each particle, and compare to actual measured range/bearing
-
-
-
+        
 
 
 # Read .dat Files using Pandas
