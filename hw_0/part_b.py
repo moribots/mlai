@@ -16,7 +16,7 @@ mauricerahme2020@u.northwestern.edu
 from __future__ import division
 import numpy as np
 import math
-import scipy as sp
+import scipy.stats
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -166,13 +166,30 @@ class Robot():
                         rb = self.measure(landmarks, i)
                         rb_mes = np.array(
                             [measurements[m][2], measurements[m][3]])
-                        cov_matrix = np.array([[self.motion_noise**2, self.motion_noise * self.sensor_noise], [self.motion_noise * self.sensor_noise, self.sensor_noise**2]])
-                        """prob = np.linalg.det(2 * np.pi * cov_matrix)**(
-                            -0.5) * np.exp(-0.5 * np.transpose(rb - rb_mes) *
-                                           cov_matrix *
-                                           (rb - rb_mes))
+                        prob = np.array([
+                            scipy.stats.norm(rb, self.sensor_noise).pdf(rb_mes)
+                        ])
+                        # print("prob{}".format(prob))
+                        prob = prob.mean(axis=1)
+                        print("prob{}".format(prob))
                         """
-                        prob = np.array([0.5])
+                        cov_matrix = np.array(
+                            [[
+                                self.motion_noise**2,
+                                self.motion_noise * self.sensor_noise
+                            ],
+                             [
+                                 self.motion_noise * self.sensor_noise,
+                                 self.sensor_noise**2
+                             ]])
+                        prob = np.array([
+                            np.linalg.det(2 * np.pi * cov_matrix)**(-0.5) *
+                            np.exp(-0.5 * np.transpose(rb - rb_mes) *
+                                   np.linalg.inv(cov_matrix) * (rb - rb_mes))
+                        ])
+                        """
+
+                        # prob = np.array([0.5])
                         # axis = 0 is row append
                         weights_i = np.append(weights_i, prob, axis=0)
                     update = True
@@ -180,10 +197,16 @@ class Robot():
             if weights_i.size > 0 and weights.size == 0:
                 weights = weights_i
             elif weights_i.size > 0:
-                np.column_stack((weights, weights_i))
+                # np.column_stack((weights, weights_i))
+                weights = np.append(weights, weights_i, axis=1)
         # average weight for m columns for m measurements
         if update is True:
-            self.particles[:, 3] = weights.mean(axis=0)
+            if len(weights.shape) > 1:
+                weights = weights.mean(axis=1)  # average weights for each mes
+            weights += 1e-100  # avoid round-off to zero
+            weights /= sum(weights)  # normalise
+            print(sum(weights))
+            self.particles[:, 3] = weights
 
     def neff(self):
         """
@@ -250,10 +273,10 @@ def main():
 
     position = [1.29812900, 1.88315210,
                 2.82870000]  # Set equal to Ground Truth Initial
-    sensor_noise = 1
-    motion_noise = 1
+    sensor_noise = 0.3
+    motion_noise = 0.17939
     std = [0.17939, 0.17939, 0.17939]
-    M = 100
+    M = 3
     # Initialize robot instance of Robot class
     robot = Robot(position, M, sensor_noise, motion_noise)
     # Initialise particles normally distributed around starting state
@@ -262,7 +285,7 @@ def main():
     path = []
     # Loop for all odometry commands
     # REPLACE RANGE WITH 0 --> LEN CONTROLS -1
-    for t in range(len(odometry) - 1):
+    for t in range(388, 500):
         t_next = odometry[t + 1][0]
         t_current = odometry[t][0]
         robot.fwd_prop(odometry[t], t_next)
