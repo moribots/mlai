@@ -37,7 +37,7 @@ class Robot():
         # Record last measurement to avoid reading list from scratch
         self.last_measurement = 0
 
-    def measure(self, landmark):
+    def measure(self, landmark, i):
         """
         FILL DOCSTRING
         """
@@ -47,16 +47,14 @@ class Robot():
         sigma_y = landmark[4]
         cov_x = (np.random.normal(mu, sigma_x))**2
         cov_y = (np.random.normal(mu, sigma_y))**2
-        r2l_range = np.zeros(self.M)
-        r2l_range[:] = np.sqrt(
-            np.power(self.particles[:, 0] - landmark[1] - cov_x, 2) +
-            np.power(self.particles[:, 1] - landmark[1] - cov_y, 2))
+        r2l_range = np.sqrt(
+            np.power(self.particles[i, 0] - landmark[1] - cov_x, 2) +
+            np.power(self.particles[i, 1] - landmark[2] - cov_y, 2))
         # arctan2 has built-in logic to account for quadrants
-        r2l_bearing = np.zeros(self.M)
-        r2l_bearing[:] = np.arctan2(
-            (landmark[2] + cov_y - self.particles[:, 1]),
-            (landmark[1] + cov_x - self.particles[:, 0]))
-        rb = [r2l_range, r2l_bearing]
+        r2l_bearing = np.zeros((self.M, 1))
+        r2l_bearing = np.arctan2((landmark[2] + cov_y - self.particles[i, 1]),
+                                 (landmark[1] + cov_x - self.particles[i, 0]))
+        rb = np.array([r2l_range, r2l_bearing])
         return rb
 
     def init_unknown_particles(self, x_domain, y_domain, bearing_range):
@@ -149,39 +147,48 @@ class Robot():
         """
         # Initialize list for landmarks we measured
         landmarks = []
-        # Initialize rb with range, bearing columns
-        rb = np.empty(self.M, 2)
         # Initialize dist_weights as intermediate weight array
         # to be averaged later for each landmark result
-        dist_weights = np.ones(self.M, 1)
-        # Similarly for bearings weight
-        bear_weights = np.ones(self.M, 1)
+
         # Make another array for the weights for m measurements to avg later
-        weights = []
+        weights = np.array([])
         # For each measurement on valid timestep, record
         # measured landmark attributes and compare
         # predicted range/bearing of each particle wrt it
+        update = False
         for m in range(len(measurements)):
+            weights_i = np.array([])
             # extract landmark attributes for each measurement
             for lg in range(len(landmark_groundtruth)):
-                if landmark_groundtruth[lg][0] == measurements[lg][1]:
-                    landmarks.append(landmark_groundtruth[lg])
-            # compute range, bearing for each particles
-            rb = self.measure(landmarks[m])
-            # calculate weight of each particle for landmark m - distance
-            dist_weights[:, 0] = np.exp(
-                -((rb[:, 0] - measurements[2])**2) /
-                (self.sensor_noise**2) / 2.0) / np.sqrt(2.0 * np.pi *
-                                                        (self.sensor_noise**2))
-            bear_weights[:, 0] = np.exp(
-                -((rb[:, 1] - measurements[3])**2) /
-                (self.sensor_noise**2) / 2.0) / np.sqrt(2.0 * np.pi *
-                                                        (self.sensor_noise**2))
-            # take average across rows and store for each measurement m
-            weights.append(
-                np.mean(np.array([dist_weights, bear_weights]), axis=0))
+                if landmark_groundtruth[lg][0] == measurements[m][1]:
+                    landmarks = landmark_groundtruth[lg]
+                    for i in range(self.M):
+                        rb = self.measure(landmarks, i)
+                        rb_mes = np.array(
+                            [measurements[m][2], measurements[m][3]])
+                        cov_matrix = np.array(
+                            [[
+                                self.motion_noise**2,
+                                self.motion_noise * self.sensor_noise
+                            ], [self.motion_noise * self.sensor_noise,
+                                self.sensor_noise**2]])
+                        """prob = np.linalg.det(2 * np.pi * cov_matrix)**(
+                            -0.5) * np.exp(-0.5 * np.transpose(rb - rb_mes) *
+                                           cov_matrix *
+                                           (rb - rb_mes))
+                        """
+                        prob = np.array([0.5])
+                        # axis = 0 is row append
+                        weights_i = np.append(weights_i, prob, axis=0)
+                    update = True
+            # append by column for m measurements
+            if weights_i.size > 0 and weights.size == 0:
+                weights = weights_i
+            elif weights_i.size > 0:
+                np.column_stack((weights, weights_i))
         # average weight for m columns for m measurements
-        self.particles[:, 3] = weights.mean(axis=1)
+        if update is True:
+            self.particles[:, 3] = weights.mean(axis=0)
 
 
 # Read .dat Files using Pandas
@@ -222,10 +229,10 @@ def main():
 
     position = [1.29812900, 1.88315210,
                 2.82870000]  # Set equal to Ground Truth Initial
-    sensor_noise = 0.00017939
-    motion_noise = 0.00017939
-    std = [0.00017939, 0.00017939, 0.00017939]
-    M = 2
+    sensor_noise = 1
+    motion_noise = 1
+    std = [0.17939, 0.17939, 0.17939]
+    M = 100
     # Initialize robot instance of Robot class
     robot = Robot(position, M, sensor_noise, motion_noise)
     # Initialise particles normally distributed around starting state
@@ -234,7 +241,7 @@ def main():
     path = []
     # Loop for all odometry commands
     # REPLACE RANGE WITH 0 --> LEN CONTROLS -1
-    for t in range(3, 5):
+    for t in range(len(odometry) - 1):
         t_next = odometry[t + 1][0]
         t_current = odometry[t][0]
         robot.fwd_prop(odometry[t], t_next)
@@ -247,8 +254,12 @@ def main():
         for m in range(robot.last_measurement, len(measurement)):
             if measurement[m][0] >= t_current and measurement[m][0] <= t_next:
                 robot.last_measurement = m  # pick up from here next time
-                measurements.append(measurement[0])
-        robot.weight(landmark_groundtruth, measurements)
+                # only track landmarks, not other robots
+                if measurement[m][1] >= 6 and measurement[m][1] <= 20:
+                    measurements.append(measurement[m])
+        if len(measurements) > 0:
+            robot.weight(landmark_groundtruth, measurements)
+            # print(robot.particles)
 
 
 if __name__ == "__main__":
