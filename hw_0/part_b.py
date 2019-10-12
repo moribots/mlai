@@ -166,12 +166,7 @@ class Robot():
                         rb = self.measure(landmarks, i)
                         rb_mes = np.array(
                             [measurements[m][2], measurements[m][3]])
-                        cov_matrix = np.array(
-                            [[
-                                self.motion_noise**2,
-                                self.motion_noise * self.sensor_noise
-                            ], [self.motion_noise * self.sensor_noise,
-                                self.sensor_noise**2]])
+                        cov_matrix = np.array([[self.motion_noise**2, self.motion_noise * self.sensor_noise], [self.motion_noise * self.sensor_noise, self.sensor_noise**2]])
                         """prob = np.linalg.det(2 * np.pi * cov_matrix)**(
                             -0.5) * np.exp(-0.5 * np.transpose(rb - rb_mes) *
                                            cov_matrix *
@@ -189,6 +184,32 @@ class Robot():
         # average weight for m columns for m measurements
         if update is True:
             self.particles[:, 3] = weights.mean(axis=0)
+
+    def neff(self):
+        """
+        """
+        return 1. / np.sum(self.particles[:, 3]**2)
+
+    def resample(self):
+        """
+        """
+        X = np.array()
+        r = np.random.uniform(0, (1 / self.M))
+        c = self.particles[0, 3]  # first weight element
+        i = 1
+        for m in range(1, self.M):
+            u = r + (m - 1) * (1 / self.M)
+            while u > c:
+                i += 1
+                c += self.particles[i, 3]
+            X = np.append(X, self.particles[i, :], axis=0)
+        self.particles[:, 3] = X
+
+    def posterior(self):
+        mean = np.average(self.particles[:, 0:2],
+                          weights=self.particles[:, 3],
+                          axis=0)
+        return mean
 
 
 # Read .dat Files using Pandas
