@@ -219,7 +219,7 @@ class Robot():
             #print(weights)
             # weights /= sum(weights)  # normalise
             #print(weights)
-            print(sum(weights))
+            # print(sum(weights))
             self.particles[:, 3] = weights
 
     def eff_weights(self):
@@ -343,7 +343,8 @@ def main():
     path = []
     # Loop for all odometry commands
     # REPLACE RANGE WITH 0 --> LEN CONTROLS -1
-    for t in range(2000):
+    iterations = 10000
+    for t in range(iterations):
         t_next = odometry[t + 1][0]
         t_current = odometry[t][0]
         robot.fwd_prop_a(odometry[t], t_next)
@@ -364,7 +365,7 @@ def main():
             robot.weight(landmark_groundtruth, measurements)
 
         # Resample if Neff < N/2 (not enough high weight particles)
-        if len(measurements) > 0 or robot.eff_weights() < robot.M * 0.4:
+        if len(measurements) > 0 and robot.eff_weights() < robot.M * 0.4:
             robot.systematic_resample()
             print("resample")
         # elif robot.eff_weights() > robot.M * 0.9:
@@ -382,9 +383,15 @@ def main():
     # Parse Ground Truth Path
     ground_truth_x = [x[1] for x in ground_truth]
     ground_truth_y = [y[2] for y in ground_truth]
+    ground_truth_xs = []
+    ground_truth_ys = []
+    for gx in range(iterations):
+        ground_truth_xs.append(ground_truth_x[gx])
+    for gy in range(iterations):
+        ground_truth_ys.append(ground_truth_y[gy])
 
     plt.plot(path_x, path_y, '-k', label='Particle Filter Path')
-    plt.plot(ground_truth_x, ground_truth_y, '-g', label='Ground Truth Data')
+    plt.plot(ground_truth_xs, ground_truth_ys, '-g', label='Ground Truth Data')
 
     # Plot inital position (Both)
     plt.plot(path_x[0],
@@ -403,13 +410,14 @@ def main():
              label='Endpoints')
 
     # Plot final position (Ground Truth)
-    plt.plot(ground_truth_x[-1],
-             ground_truth_y[-1],
+    plt.plot(ground_truth_xs[-1],
+             ground_truth_ys[-1],
              color='darkviolet',
              marker='o',
              markersize=5)
 
     # Plot Landmarks
+    """
     landmark_x = [x[1] for x in landmark_groundtruth]
     landmark_y = [y[2] for y in landmark_groundtruth]
     plt.scatter(landmark_x,
@@ -417,6 +425,7 @@ def main():
                 color='r',
                 marker='x',
                 label='Landmarks')
+    """
     plt.legend()
     plt.show()
 
