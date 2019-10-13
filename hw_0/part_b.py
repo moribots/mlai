@@ -29,7 +29,7 @@ class Robot():
         # empty numpy array w/N rows, 4 columns for x,y,theta, weight
         self.particles = np.zeros((self.M, 4))
         # set initial particle weights (4th col) to be all equal and sum to 1
-        self.particles[:, 3] = 1 / self.M
+        self.particles[:, 3] = 1.0 / self.M
         # Initialize sensor noise
         self.sensor_noise = sensor_noise
         # Initialize motion noise
@@ -161,6 +161,7 @@ class Robot():
             # extract landmark attributes for each measurement
             for lg in range(len(landmark_groundtruth)):
                 if landmark_groundtruth[lg][0] == measurements[m][1]:
+                    update = True
                     landmarks = landmark_groundtruth[lg]
                     for i in range(self.M):
                         rb = self.measure(landmarks, i)
@@ -171,7 +172,7 @@ class Robot():
                         ])
                         # print("prob{}".format(prob))
                         prob = prob.mean(axis=1)
-                        print("prob{}".format(prob))
+                        # print("prob{}".format(prob))
                         """
                         cov_matrix = np.array(
                             [[
@@ -192,46 +193,48 @@ class Robot():
                         # prob = np.array([0.5])
                         # axis = 0 is row append
                         weights_i = np.append(weights_i, prob, axis=0)
-                    update = True
+                        # print(weights_i)
             # append by column for m measurements
             if weights_i.size > 0 and weights.size == 0:
                 weights = weights_i
-            elif weights_i.size > 0:
-                # np.column_stack((weights, weights_i))
-                weights = np.append(weights, weights_i, axis=1)
+            elif weights_i.size and len(weights.shape) > 0:
+                np.column_stack((weights, weights_i))
+                # weights = np.append(weights, weights_i, axis=1)
         # average weight for m columns for m measurements
         if update is True:
             if len(weights.shape) > 1:
                 weights = weights.mean(axis=1)  # average weights for each mes
             weights += 1e-100  # avoid round-off to zero
             weights /= sum(weights)  # normalise
-            print(sum(weights))
+            # print(sum(weights))
             self.particles[:, 3] = weights
 
-    def neff(self):
+    def eff_weights(self):
         """
         """
-        return 1. / np.sum(self.particles[:, 3]**2)
+        return 1.0 / np.sum(self.particles[:, 3]**2)
 
     def resample(self):
         """
         """
-        X = np.array()
-        r = np.random.uniform(0, (1 / self.M))
+        X = np.empty((self.M, 4))
+        r = np.random.uniform(0, (1.0 / self.M))
         c = self.particles[0, 3]  # first weight element
-        i = 1
         for m in range(1, self.M):
             u = r + (m - 1) * (1 / self.M)
-            while u > c:
-                i += 1
-                c += self.particles[i, 3]
-            X = np.append(X, self.particles[i, :], axis=0)
-        self.particles[:, 3] = X
+            for i in range(self.M):
+                if c >= u:
+                    break
+                else:
+                    c += self.particles[i, 3]
+            X[i, :] = self.particles[i, :]
+        self.particles = X
 
     def posterior(self):
-        mean = np.average(self.particles[:, 0:2],
+        mean = np.average(self.particles,
                           weights=self.particles[:, 3],
                           axis=0)
+        print(mean)
         return mean
 
 
@@ -276,16 +279,36 @@ def main():
     sensor_noise = 0.3
     motion_noise = 0.17939
     std = [0.17939, 0.17939, 0.17939]
-    M = 3
+    M = 1000
     # Initialize robot instance of Robot class
     robot = Robot(position, M, sensor_noise, motion_noise)
     # Initialise particles normally distributed around starting state
     robot.init_known_particles(std)
+    """
+    dummy = robot.particles
+    print(dummy)
+    return dummy
+    """
+
+    #Initialise Plot
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Particle Filter Pose Estimation VS. Ground Truth Data')
+    plt.ylabel('y [m]')
+    plt.xlabel('x [m]')
+
+    # Plot particles
+    """
+    plt.scatter(robot.particles[:, 0],
+                robot.particles[:, 1],
+                alpha=0.2,
+                color='g',
+                label='Particles')
+    """
 
     path = []
     # Loop for all odometry commands
     # REPLACE RANGE WITH 0 --> LEN CONTROLS -1
-    for t in range(388, 500):
+    for t in range(2000):
         t_next = odometry[t + 1][0]
         t_current = odometry[t][0]
         robot.fwd_prop(odometry[t], t_next)
@@ -303,8 +326,57 @@ def main():
                     measurements.append(measurement[m])
         if len(measurements) > 0:
             robot.weight(landmark_groundtruth, measurements)
-            # print(robot.particles)
+        robot.resample()
+            #print(robot.particles)
+
+        # Resample if Neff < N/2 (not enough high weight particles)
+        #print(robot.eff_weights())
+        #if robot.eff_weights() < robot.M:
+        
+
+        # Extract posterior
+        mean = robot.posterior()
+        path.append(mean)
+        # print(mean)
+
+    # Plot PF Path
+    path_x = [x[0] for x in path]
+    path_y = [y[1] for y in path]
+
+    # Plot Ground Truth Path
+    ground_truth_x = [x[1] for x in ground_truth]
+    ground_truth_y = [y[2] for y in ground_truth]
+
+    plt.plot(path_x, path_y, '-k', label='Dead Reckoning Data')
+    plt.plot(ground_truth_x, ground_truth_y, '-g', label='Ground Truth Data')
+
+    # Plot inital position (Both)
+    plt.plot(path_x[0],
+             path_y[0],
+             color='gold',
+             marker='o',
+             markersize=10,
+             label='Starting Point')
+
+    # Plot final position (Dead Reckoning)
+    plt.plot(path_x[-1],
+             path_y[-1],
+             color='darkviolet',
+             marker='o',
+             markersize=5,
+             label='Endpoints')
+
+    # Plot final position (Ground Truth)
+    plt.plot(ground_truth_x[-1],
+             ground_truth_y[-1],
+             color='darkviolet',
+             marker='o',
+             markersize=5)
+
+    #plt.legend()
+    plt.show()
 
 
 if __name__ == "__main__":
+    # dummy = main()
     main()
