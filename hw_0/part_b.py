@@ -221,7 +221,7 @@ class Robot():
                         self.position[0], 0.0001)
                     self.particles[i, 1] = np.random.normal(
                         self.position[1], 0.0001)
-                    self.particles[i, 2] = np.random.normal(self.position[2], 0.05)
+                    self.particles[i, 2] = np.random.normal(self.position[2], 2)
                     self.particles[i, 3] = 1 / float(self.M)
             # re-normalise
             self.particles[:, 3] /= np.sum(self.particles[:, 3])
@@ -294,9 +294,9 @@ def main():
 
 
     position = [1.29812900, 1.88315210, 2.82870000]  # Set equal to Ground Truth Initial
-    sensor_noise = [0.001, 0.001, 0.001]
-    motion_noise = [0.0001, 0.0001]  # 10% noise on controller
-    std = [0.2, 0.2, 0.5]
+    sensor_noise = [0.1, 0.1, 0.01]
+    motion_noise = [0.0001, 0.0001]
+    std = [0.0002, 0.0002, 1.5] # remove 1 zero from x y
     M = 1000
     # Initialize robot instance of Robot class
     robot = Robot(position, M, sensor_noise, motion_noise)
@@ -326,6 +326,7 @@ def main():
     for t in range(iterations):
         t_next = odometry[t + 1][0]
         t_current = odometry[t][0]
+        t_future = odometry[t+2][0]
         robot.fwd_prop(odometry[t], t_next)
         # path.append(robot.particles.tolist())
 
@@ -334,7 +335,7 @@ def main():
         # If landmark timestamp within two control stamps (future-curr), use it
         # look through measurements to see what timestamps match
         for m in range(len(measurement)):
-            if measurement[m][0] >= t_current and measurement[m][0] <= t_next:
+            if measurement[m][0] >= t_current and measurement[m][0] <= t_future:
                 robot.last_measurement = m  # pick up from here next time
                 # only track landmarks, not other robots
                 if measurement[m][1] >= 6 and measurement[m][1] <= 20:
