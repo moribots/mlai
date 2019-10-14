@@ -31,9 +31,9 @@ class Robot():
         # set initial particle weights (4th col) to be all equal and sum to 1
         self.particles[:, 3] = 1.0 / self.M
         # Initialize sensor noise
-        self.sensor_noise = np.random.normal(0, sensor_noise)
+        self.sensor_noise = [np.random.normal(0, sensor_noise[0]), np.random.normal(0, sensor_noise[1]), np.random.normal(0, sensor_noise[2])]
         # Initialize motion noise
-        self.motion_noise = np.random.normal(0, motion_noise)
+        self.motion_noise = [np.random.normal(0, motion_noise[0]), np.random.normal(0, motion_noise[1])]
         # Record last measurement to avoid reading list from scratch
         self.last_measurement = 0
 
@@ -57,37 +57,6 @@ class Robot():
                                  (landmark[1] + cov_x - self.particles[i, 0]))
         rb = [r2l_range, r2l_bearing]
         return rb
-
-    def init_unknown_particles(self, x_domain, y_domain, bearing_range):
-        """ USE IF INITIAL CONDITION (STATE) UNKNOWN
-
-            Generates random uniformly distributed particles, each with
-            x, y, and theta attributes. Number of particles dictated in
-            Class initialisation.
-
-            Args:
-                x_domain ~ list: room size in x
-                y_domain ~ list: room size in y
-                bearing_range ~ list: should be set from 0 - 2*pi
-                last arg modulated by 2*np.pi for bounding assurance
-
-            Returns:
-                numpy array of particles (M rows, 3 cols for x, y, theta)
-                Uniform Distribution
-        """
-        # populate x column, index 0
-        self.particles[:, 0] = np.random.uniform(x_domain[0],
-                                                 x_domain[1],
-                                                 size=self.M)
-        # populate y column, index 1
-        self.particles[:, 1] = np.random.uniform(y_domain[0],
-                                                 y_domain[1],
-                                                 size=self.M)
-        # populate theta column and take modulus of 2pi to keep in bounds
-        self.particles[:, 2] = np.random.uniform(
-            bearing_range[0], bearing_range[1], size=self.M) % (2 * np.pi)
-
-        return self.particles
 
     def init_known_particles(self, std):
         """ USE IF INITIAL CONDITION (STATE) KNOWN
@@ -129,18 +98,18 @@ class Robot():
 
         if w_control == 0:
             # only linear velocity
-            self.particles[:, 0] += v_control * np.cos(self.particles[:, 2]) * dt + self.motion_noise
-            self.particles[:, 1] += v_control * np.sin(self.particles[:, 2]) * dt + self.motion_noise
+            self.particles[:, 0] += v_control * np.cos(self.particles[:, 2]) * dt + self.motion_noise[0]
+            self.particles[:, 1] += v_control * np.sin(self.particles[:, 2]) * dt + self.motion_noise[1]
             # no heading update
         else:
             # lin and ang velocity, move in a circle, P-101 PR
             self.particles[:, 0] += (v_control / w_control) * (
                 -np.sin(self.particles[:, 2]) +
-                np.sin(self.particles[:, 2] + w_control * dt)) + + self.motion_noise
+                np.sin(self.particles[:, 2] + w_control * dt)) + + self.motion_noise[0]
             self.particles[:, 1] += (v_control / w_control) * (
                 np.cos(self.particles[:, 2]) -
-                np.cos(self.particles[:, 2] + w_control * dt)) + self.motion_noise
-            self.particles[:, 2] += w_control * dt + self.motion_noise
+                np.cos(self.particles[:, 2] + w_control * dt)) + self.motion_noise[0]
+            self.particles[:, 2] += w_control * dt + self.motion_noise[1]
 
     def weight(self, landmark_groundtruth, measurements):
         """
@@ -226,17 +195,10 @@ class Robot():
             X = np.append(X, self.particles[i, :])
         self.particles = X
 
-    def npchoice_resample(self):
-        indeces = np.random.choice(self.M,
-                                   self.M,
-                                   replace=True,
-                                   p=self.particles[:, 3])
-        self.particles = self.particles[indeces, :]
-
     def lowvar_resample(self):
         index_array = (np.arange(self.M) +
                        np.random.uniform(0, (1.0 / self.M))) / self.M
-        print(index_array)
+        # print(index_array)
 
         indxs = np.zeros(self.M, dtype=np.int32)
         cum_sum = np.cumsum(self.particles[:, 3])
@@ -256,9 +218,9 @@ class Robot():
             for i in range(self.M):
                 if i % 100 == 0:
                     self.particles[i, 0] = np.random.normal(
-                        self.position[0], 0.001)
+                        self.position[0], 0.0001)
                     self.particles[i, 1] = np.random.normal(
-                        self.position[1], 0.001)
+                        self.position[1], 0.0001)
                     self.particles[i, 2] = np.random.normal(self.position[2], 0.05)
                     self.particles[i, 3] = 1 / float(self.M)
             # re-normalise
@@ -317,12 +279,24 @@ def main():
     measurement = read_dat(
         3, "ds0/ds0_Measurement.dat",
         ["Time [s]", "Subject #", "range [m]", "bearing [rad]"])
+    barcodes = read_dat(
+        3, "ds0/ds0_Barcodes.dat",
+        ["Subject #", "Barcode #"])
 
-    position = [1.29812900, 1.88315210,
-                2.82870000]  # Set equal to Ground Truth Initial
-    sensor_noise = 0.01
-    motion_noise = 0.00001  # 10% noise on controller
-    std = [0.03020, 0.017939, 0.06]
+    # Convert Measurement.dat subject # into actual subject # for landmark_groundtruth using barcode.dat
+    for b in range(len(barcodes)):
+        for mes in range(len(measurement)):
+            if barcodes[b][1] == measurement[mes][1]:
+                measurement[mes][1] = barcodes[b][0]
+    # for mi in range(len(measurement)):
+    #    print(measurement[mi][1])
+
+
+
+    position = [1.29812900, 1.88315210, 2.82870000]  # Set equal to Ground Truth Initial
+    sensor_noise = [0.001, 0.001, 0.001]
+    motion_noise = [0.0001, 0.0001]  # 10% noise on controller
+    std = [0.2, 0.2, 0.5]
     M = 1000
     # Initialize robot instance of Robot class
     robot = Robot(position, M, sensor_noise, motion_noise)
@@ -359,7 +333,7 @@ def main():
         measurements = []
         # If landmark timestamp within two control stamps (future-curr), use it
         # look through measurements to see what timestamps match
-        for m in range(robot.last_measurement, len(measurement)):
+        for m in range(len(measurement)):
             if measurement[m][0] >= t_current and measurement[m][0] <= t_next:
                 robot.last_measurement = m  # pick up from here next time
                 # only track landmarks, not other robots
@@ -369,10 +343,10 @@ def main():
             print("measure at t = {}".format(t))
             robot.weight(landmark_groundtruth, measurements)
 
-        print(robot.eff_weights())
+        # print(robot.eff_weights())
         # robot.eff_weights() < robot.M * 0.99
         # Resample if Neff < N/2 (not enough high weight particles)
-        if len(measurements) > 0 and resample % 2 == 0 or robot.eff_weights() < robot.M/2:
+        if len(measurements) > 0 or robot.eff_weights() < robot.M/2:
         # if robot.eff_weights() < robot.M * 0.89:
             print("resample")
             robot.lowvar_resample()
@@ -386,7 +360,7 @@ def main():
         mean = robot.posterior()
         path.append(mean)
         robot.position = mean[0:3]
-        print("the mean is: {}".format(mean))
+        # print("the mean is: {}".format(mean))
 
     # Parse F Path
     path_x = [x[0] for x in path]
@@ -444,7 +418,7 @@ def main():
                 alpha=0.2,
                 color='r',
                 label='Particles')
-    print(len(robot.particles))
+    # print(len(robot.particles))
     #plt.legend()
     plt.show()
 
