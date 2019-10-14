@@ -31,7 +31,7 @@ class Robot():
         # set initial particle weights (4th col) to be all equal and sum to 1
         self.particles[:, 3] = 1.0 / self.M
         # Initialize sensor noise
-        self.sensor_noise = sensor_noise
+        self.sensor_noise = np.random.normal(0, sensor_noise)
         # Initialize motion noise
         self.motion_noise = np.random.normal(0, motion_noise)
         # Record last measurement to avoid reading list from scratch
@@ -186,8 +186,10 @@ class Robot():
                         rb_mes = [measurements[m][2], measurements[m][3]]
                         #print(rb[0] - rb_mes[0])
                         #prob = np.array([[scipy.stats.norm(rb[0], self.sensor_noise).pdf(rb_mes[0])], [scipy.stats.norm(rb[1], self.sensor_noise).pdf(rb_mes[1])]])
-                        prob = np.array([[np.abs(rb[0] - rb_mes[0])],
-                                         [np.abs(rb[1] - rb_mes[1])]])
+                        # Smaller distance should warrant higher weight
+                        prob = np.array([[1 / np.abs(rb[0] - rb_mes[0])],
+                                         [1 / np.abs(rb[1] - rb_mes[1])]])
+                        # print(prob)
                         weights_i_range = np.append(weights_i_range,
                                                     prob[0],
                                                     axis=0)
@@ -203,29 +205,23 @@ class Robot():
                     weights_i = np.array([[weights_i_range],
                                           [weights_i_bearing]])
                     weights_i = weights_i.mean(axis=0)
-                    #print(weights_i)
             # append by column for m measurements
             if weights_i.size > 0 and weights.size == 0:
                 weights = weights_i
             elif weights_i.size and len(weights.shape) > 0:
                 np.column_stack((weights, weights_i))
-                # weights = np.append(weights, weights_i, axis=1)
         # average weight for m columns for m measurements
         if update is True:
             if len(weights.shape) > 1:
                 weights = weights.mean(
-                    axis=0)  #TRY 1 HERE  # average weights for each mes
-            # weights += 1e-300  # avoid round-off to zero
-            #print(weights)
-            # weights /= sum(weights)  # normalise
-            #print(weights)
-            # print(sum(weights))
+                    axis=0)
             self.particles[:, 3] = weights
 
     def eff_weights(self):
         """
         """
-        n_eff = 1.0 / np.sum(np.square(self.particles[:, 3]))
+        weights = self.particles[:, 3]
+        n_eff = 1.0 / np.sum(weights**2)
         return n_eff
 
     def resample(self):
@@ -252,22 +248,19 @@ class Robot():
         self.particles = self.particles[indeces, :]
 
     def systematic_resample(self):
-        N = len(self.particles[:, 3])
+        index_array = (np.arange(self.M) + np.random.uniform(0, (1.0 / self.M))) / self.M
 
-        # make N subdivisions, choose positions
-        # with a consistent random offset
-        positions = (np.arange(N) + np.random.uniform(0, (1.0 / self.M))) / N
-
-        indexes = np.zeros(N, 'i')
-        cumulative_sum = np.cumsum(self.particles[:, 3])
-        i, j = 0, 0
-        while i < N:
-            if positions[i] < cumulative_sum[j]:
-                indexes[i] = j
+        indxs = np.zeros(self.M, dtype=np.int32)
+        cum_sum = np.cumsum(self.particles[:, 3])
+        i = 0
+        j = 0
+        while i < self.M:
+            if index_array[i] < cum_sum[j]:
+                indxs[i] = j
                 i += 1
             else:
                 j += 1
-        self.particles = self.particles[indexes, :]
+        self.particles = self.particles[indxs, :]
 
     def posterior(self):
         """
@@ -315,9 +308,9 @@ def main():
 
     position = [1.29812900, 1.88315210,
                 2.82870000]  # Set equal to Ground Truth Initial
-    sensor_noise = 1
-    motion_noise = 0.01  # 10% noise on controller
-    std = [0.001, 0.003, np.pi / 8]
+    sensor_noise = 2
+    motion_noise = 0.001  # 10% noise on controller
+    std = [0.001, 0.001, np.pi / 1000]
     M = 10000
     # Initialize robot instance of Robot class
     robot = Robot(position, M, sensor_noise, motion_noise)
@@ -326,14 +319,13 @@ def main():
     print(robot.particles)
     print(robot.eff_weights())
 
-    #Initialise Plot
+    # Initialise Plot
     plt.autoscale(enable=True, axis='both', tight=None)
     plt.title('Particle Filter Pose Estimation VS. Ground Truth Data')
     plt.ylabel('y [m]')
     plt.xlabel('x [m]')
 
     # Plot particles
-
     plt.scatter(robot.particles[:, 0],
                 robot.particles[:, 1],
                 alpha=0.2,
@@ -341,9 +333,10 @@ def main():
                 label='Particles')
 
     path = []
+    resample = 0
     # Loop for all odometry commands
     # REPLACE RANGE WITH 0 --> LEN CONTROLS -1
-    iterations = 10000
+    iterations = 2000
     for t in range(iterations):
         t_next = odometry[t + 1][0]
         t_current = odometry[t][0]
@@ -364,17 +357,22 @@ def main():
             print("measure at t = {}".format(t))
             robot.weight(landmark_groundtruth, measurements)
 
+        print(robot.eff_weights())
+        # robot.eff_weights() < robot.M * 0.99
         # Resample if Neff < N/2 (not enough high weight particles)
-        if len(measurements) > 0 and robot.eff_weights() < robot.M * 0.4:
-            robot.systematic_resample()
+        if len(measurements) > 0 and resample % 2 == 0:
             print("resample")
+            robot.systematic_resample()
+            resample += 1
+        else:
+            resample += 1
         # elif robot.eff_weights() > robot.M * 0.9:
         # Our particle set has collapsed to one item, rebuild distro
 
         # Extract posterior
         mean = robot.posterior()
         path.append(mean)
-        #print("the mean is {}".format(mean))
+        print("the mean is: {}".format(mean))
 
     # Parse F Path
     path_x = [x[0] for x in path]
@@ -417,7 +415,6 @@ def main():
              markersize=5)
 
     # Plot Landmarks
-    """
     landmark_x = [x[1] for x in landmark_groundtruth]
     landmark_y = [y[2] for y in landmark_groundtruth]
     plt.scatter(landmark_x,
@@ -425,11 +422,16 @@ def main():
                 color='r',
                 marker='x',
                 label='Landmarks')
-    """
-    plt.legend()
+
+    # Plot particles
+    plt.scatter(robot.particles[:, 0],
+                robot.particles[:, 1],
+                alpha=0.2,
+                color='r',
+                label='Particles')
+    #plt.legend()
     plt.show()
 
 
 if __name__ == "__main__":
-    # dummy = main()
     main()
