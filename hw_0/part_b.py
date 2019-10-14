@@ -123,39 +123,24 @@ class Robot():
         dt = np.abs(control[0] - t_next)
 
         # std[0] is linear control noise
-        v_control = control[1] * (1 + self.motion_noise)
+        v_control = control[1]
         # std[1] is angular control noise
-        w_control = control[2] * (1 + self.motion_noise)
+        w_control = control[2]
 
         if w_control == 0:
             # only linear velocity
-            self.particles[:, 0] += self.particles[:, 0] * control[1] * dt
-            self.particles[:, 1] += self.particles[:, 1] * control[1] * dt
+            self.particles[:, 0] += v_control * np.cos(self.particles[:, 2]) * dt + self.motion_noise
+            self.particles[:, 1] += v_control * np.sin(self.particles[:, 2]) * dt + self.motion_noise
             # no heading update
         else:
             # lin and ang velocity, move in a circle, P-101 PR
             self.particles[:, 0] += (v_control / w_control) * (
                 -np.sin(self.particles[:, 2]) +
-                np.sin(self.particles[:, 2] + w_control * dt))
+                np.sin(self.particles[:, 2] + w_control * dt)) + + self.motion_noise
             self.particles[:, 1] += (v_control / w_control) * (
                 np.cos(self.particles[:, 2]) -
-                np.cos(self.particles[:, 2] + w_control * dt))
-            self.particles[:, 2] += w_control * dt
-
-    def fwd_prop_a(self, control, t_next):
-        """
-        FILL DOCSTRING
-        """
-        dt = np.abs(control[0] - t_next)
-
-        # std[0] is linear control noise
-        v_control = control[1] * (1 + self.motion_noise)
-        # std[1] is angular control noise
-        w_control = control[2] * (1 + self.motion_noise)
-
-        self.particles[:, 0] += v_control * np.cos(self.particles[:, 2]) * dt
-        self.particles[:, 1] += v_control * np.sin(self.particles[:, 2]) * dt
-        self.particles[:, 2] += w_control * dt
+                np.cos(self.particles[:, 2] + w_control * dt)) + self.motion_noise
+            self.particles[:, 2] += w_control * dt + self.motion_noise
 
     def weight(self, landmark_groundtruth, measurements):
         """
@@ -184,11 +169,11 @@ class Robot():
                     for i in range(self.M):
                         rb = self.measure(landmarks, i)
                         rb_mes = [measurements[m][2], measurements[m][3]]
-                        #print(rb[0] - rb_mes[0])
-                        #prob = np.array([[scipy.stats.norm(rb[0], self.sensor_noise).pdf(rb_mes[0])], [scipy.stats.norm(rb[1], self.sensor_noise).pdf(rb_mes[1])]])
+                        # print("difference: {}".format(rb[0] - rb_mes[0]))
+                        # prob = np.array([[scipy.stats.norm(rb[0], self.sensor_noise).pdf(rb_mes[0])], [scipy.stats.norm(rb[1], self.sensor_noise).pdf(rb_mes[1])]])
                         # Smaller distance should warrant higher weight
-                        prob = np.array([[1 / np.abs(rb[0] - rb_mes[0])],
-                                         [1 / np.abs(rb[1] - rb_mes[1])]])
+                        prob = np.array([[1 / np.square(rb[0] - rb_mes[0])],
+                                         [1 / np.square(rb[1] - rb_mes[1])]])
                         # print(prob)
                         weights_i_range = np.append(weights_i_range,
                                                     prob[0],
@@ -196,10 +181,10 @@ class Robot():
                         weights_i_bearing = np.append(weights_i_bearing,
                                                       prob[1],
                                                       axis=0)
-                    weights_i_range += 1e-300
-                    weights_i_bearing += 1e-300
-                    weights_i_range /= sum(weights_i_range)
-                    weights_i_bearing /= sum(weights_i_bearing)
+                    # weights_i_range += 1e-300
+                    # weights_i_bearing += 1e-300
+                    weights_i_range /= np.sum(weights_i_range)
+                    weights_i_bearing /= np.sum(weights_i_bearing)
                     # print("range w {}".format(weights_i_range))
                     # print("bear w {}".format(weights_i_bearing))
                     weights_i = np.array([[weights_i_range],
@@ -213,31 +198,32 @@ class Robot():
         # average weight for m columns for m measurements
         if update is True:
             if len(weights.shape) > 1:
-                weights = weights.mean(
-                    axis=0)
-            self.particles[:, 3] = weights
+                weights = weights.mean(axis=0)
+            self.particles[:, 3] *= weights
+            self.particles[:, 3] /= np.sum(self.particles[:, 3])
 
     def eff_weights(self):
         """
         """
-        weights = self.particles[:, 3]
-        n_eff = 1.0 / np.sum(weights**2)
-        return n_eff
+        w_eff = 1.0 / np.sum(self.particles[:, 3]**2)
+        return w_eff
 
     def resample(self):
         """
         """
         X = np.empty((self.M, 4))
-        r = np.random.uniform(0, (1.0 / self.M))
+        r = np.random.random() * 1 / float(self.M)
         c = self.particles[0, 3]  # first weight element
-        for m in range(1, self.M):
-            u = r + (m - 1) * (1 / self.M)
-            for i in range(self.M):
-                if c >= u:
+        i = 0
+        for m in range(self.M):
+            u = r + (m * 1 / float(self.M - 1))
+            while u > c:
+                i += 1
+                if i > self.M - 1:
+                    i = self.M - 1
                     break
-                else:
-                    c += self.particles[i, 3]
-            X[i, :] = self.particles[i, :]
+                c += self.particles[i, 3]
+            X = np.append(X, self.particles[i, :])
         self.particles = X
 
     def npchoice_resample(self):
@@ -247,8 +233,10 @@ class Robot():
                                    p=self.particles[:, 3])
         self.particles = self.particles[indeces, :]
 
-    def systematic_resample(self):
-        index_array = (np.arange(self.M) + np.random.uniform(0, (1.0 / self.M))) / self.M
+    def lowvar_resample(self):
+        index_array = (np.arange(self.M) +
+                       np.random.uniform(0, (1.0 / self.M))) / self.M
+        print(index_array)
 
         indxs = np.zeros(self.M, dtype=np.int32)
         cum_sum = np.cumsum(self.particles[:, 3])
@@ -261,12 +249,36 @@ class Robot():
             else:
                 j += 1
         self.particles = self.particles[indxs, :]
+        # re-normalise
+        self.particles[:, 3] /= np.sum(self.particles[:, 3])
+        if self.eff_weights() > self.M * 0.85:
+            # resampling needs additional variance
+            for i in range(self.M):
+                if i % 100 == 0:
+                    self.particles[i, 0] = np.random.normal(
+                        self.position[0], 0.001)
+                    self.particles[i, 1] = np.random.normal(
+                        self.position[1], 0.001)
+                    self.particles[i, 2] = np.random.normal(self.position[2], 0.05)
+                    self.particles[i, 3] = 1 / float(self.M)
+            # re-normalise
+            self.particles[:, 3] /= np.sum(self.particles[:, 3])
 
     def posterior(self):
         """
         """
-        mean = np.average(self.particles, weights=self.particles[:, 3], axis=0)
+        # mean = np.average(self.particles, weights=self.particles[:, 3], axis=0)
         #print(mean)
+        
+        mean_x = 0
+        mean_y = 0
+        mean_t = 0
+        for i in range(self.M):
+
+            mean_x += self.particles[i, 0] * self.particles[i, 3]
+            mean_y += self.particles[i, 1] * self.particles[i, 3]
+            mean_t += self.particles[i, 2] * self.particles[i, 3]
+        mean = np.array([mean_x, mean_y, mean_t])
         return mean
 
 
@@ -308,10 +320,10 @@ def main():
 
     position = [1.29812900, 1.88315210,
                 2.82870000]  # Set equal to Ground Truth Initial
-    sensor_noise = 2
-    motion_noise = 0.001  # 10% noise on controller
-    std = [0.001, 0.001, np.pi / 1000]
-    M = 10000
+    sensor_noise = 0.01
+    motion_noise = 0.00001  # 10% noise on controller
+    std = [0.03020, 0.017939, 0.06]
+    M = 1000
     # Initialize robot instance of Robot class
     robot = Robot(position, M, sensor_noise, motion_noise)
     # Initialise particles normally distributed around starting state
@@ -336,11 +348,11 @@ def main():
     resample = 0
     # Loop for all odometry commands
     # REPLACE RANGE WITH 0 --> LEN CONTROLS -1
-    iterations = 2000
+    iterations = 10000
     for t in range(iterations):
         t_next = odometry[t + 1][0]
         t_current = odometry[t][0]
-        robot.fwd_prop_a(odometry[t], t_next)
+        robot.fwd_prop(odometry[t], t_next)
         # path.append(robot.particles.tolist())
 
         # Initialize measurements list used in this t
@@ -360,9 +372,10 @@ def main():
         print(robot.eff_weights())
         # robot.eff_weights() < robot.M * 0.99
         # Resample if Neff < N/2 (not enough high weight particles)
-        if len(measurements) > 0 and resample % 2 == 0:
+        if len(measurements) > 0 and resample % 2 == 0 or robot.eff_weights() < robot.M/2:
+        # if robot.eff_weights() < robot.M * 0.89:
             print("resample")
-            robot.systematic_resample()
+            robot.lowvar_resample()
             resample += 1
         else:
             resample += 1
@@ -372,6 +385,7 @@ def main():
         # Extract posterior
         mean = robot.posterior()
         path.append(mean)
+        robot.position = mean[0:3]
         print("the mean is: {}".format(mean))
 
     # Parse F Path
@@ -387,6 +401,7 @@ def main():
         ground_truth_xs.append(ground_truth_x[gx])
     for gy in range(iterations):
         ground_truth_ys.append(ground_truth_y[gy])
+    
 
     plt.plot(path_x, path_y, '-k', label='Particle Filter Path')
     plt.plot(ground_truth_xs, ground_truth_ys, '-g', label='Ground Truth Data')
@@ -429,6 +444,7 @@ def main():
                 alpha=0.2,
                 color='r',
                 label='Particles')
+    print(len(robot.particles))
     #plt.legend()
     plt.show()
 
