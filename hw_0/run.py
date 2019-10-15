@@ -201,8 +201,13 @@ class Robot():
                         rb_mes = [measurements[m][2], measurements[m][3]]
                         # Likelihood of this particle representing the bel(x)
                         # given these measurements
-                        prob = np.array([[1 / np.square(rb[0] - rb_mes[0])],
+                        varr = 0.5 * abs(rb[0] - rb_mes[0])
+                        varb = 0.5 * abs(rb[1] - rb_mes[1])
+                        prob = np.array([[(1/np.sqrt(2*np.pi*varr**2))*np.exp(-0.5*((rb[0]-rb_mes[0])**2/(varr**2)))],
+                                         [(1/np.sqrt(2*np.pi*varb**2))*np.exp(-0.5*((rb[1]-rb_mes[1])**2/(varb**2)))]])
+                        """prob = np.array([[1 / np.square(rb[0] - rb_mes[0])],
                                          [1 / np.square(rb[1] - rb_mes[1])]])
+                        """
                         # print(prob)
                         weights_i_range = np.append(weights_i_range,
                                                     prob[0],
@@ -616,7 +621,7 @@ def pf(odometry, ground_truth, measurement, barcodes, landmark_groundtruth):
     path = []
     var = 0
     # Loop for all odometry commands
-    iterations = 10000
+    iterations = len(odometry) - 1
     for t in range(iterations):
         t_next = odometry[t + 1][0]
         t_current = odometry[t][0]
@@ -656,16 +661,17 @@ def pf(odometry, ground_truth, measurement, barcodes, landmark_groundtruth):
     # Parse Ground Truth Path
     ground_truth_x = [x[1] for x in ground_truth]
     ground_truth_y = [y[2] for y in ground_truth]
-
+    """
     ground_truth_xs = []
     ground_truth_ys = []
     for gx in range(iterations):
         ground_truth_xs.append(ground_truth_x[gx])
     for gy in range(iterations):
         ground_truth_ys.append(ground_truth_y[gy])
+    """
 
     plt.plot(path_x, path_y, '-k', label='Particle Filter Path')
-    plt.plot(ground_truth_xs, ground_truth_ys, '-g', label='Ground Truth Data')
+    plt.plot(ground_truth_x, ground_truth_y, '-g', label='Ground Truth Data')
 
     # Plot inital position (Both)
     plt.plot(path_x[0],
@@ -684,8 +690,8 @@ def pf(odometry, ground_truth, measurement, barcodes, landmark_groundtruth):
              label='Endpoints')
 
     # Plot final position (Ground Truth)
-    plt.plot(ground_truth_xs[-1],
-             ground_truth_ys[-1],
+    plt.plot(ground_truth_x[-1],
+             ground_truth_y[-1],
              color='darkviolet',
              marker='o',
              markersize=5)
