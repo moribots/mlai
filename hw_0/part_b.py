@@ -177,43 +177,26 @@ class Robot():
         w_eff = 1.0 / np.sum(self.particles[:, 3]**2)
         return w_eff
 
-    def resample(self):
+    def resample(self, var):
         """
         """
         X = np.empty((self.M, 4))
-        r = np.random.random() * 1 / float(self.M)
+        r = np.random.random() / self.M
         c = self.particles[0, 3]  # first weight element
         i = 0
         for m in range(self.M):
-            u = r + (m * 1 / float(self.M - 1))
+            u = r + (m * 1 / (self.M - 1))
             while u > c:
                 i += 1
                 if i > self.M - 1:
                     i = self.M - 1
                     break
                 c += self.particles[i, 3]
-            X = np.append(X, self.particles[i, :])
+            X[m, :] = self.particles[i, :]
         self.particles = X
-
-    def lowvar_resample(self):
-        index_array = (np.arange(self.M) +
-                       np.random.uniform(0, (1.0 / self.M))) / self.M
-        # print(index_array)
-
-        indxs = np.zeros(self.M, dtype=np.int32)
-        cum_sum = np.cumsum(self.particles[:, 3])
-        i = 0
-        j = 0
-        while i < self.M:
-            if index_array[i] < cum_sum[j]:
-                indxs[i] = j
-                i += 1
-            else:
-                j += 1
-        self.particles = self.particles[indxs, :]
         # re-normalise
         self.particles[:, 3] /= np.sum(self.particles[:, 3])
-        if self.eff_weights() > self.M * 0.85:
+        if var < 3e-10:
             # resampling needs additional variance
             for i in range(self.M):
                 if i % 100 == 0:
@@ -222,16 +205,16 @@ class Robot():
                     self.particles[i, 1] = np.random.normal(
                         self.position[1], 0.0001)
                     self.particles[i, 2] = np.random.normal(self.position[2], 2)
-                    self.particles[i, 3] = 1 / float(self.M)
+                    self.particles[i, 3] = 1 / (self.M)
             # re-normalise
             self.particles[:, 3] /= np.sum(self.particles[:, 3])
 
     def posterior(self):
         """
         """
-        # mean = np.average(self.particles, weights=self.particles[:, 3], axis=0)
+        mean = np.average(self.particles, weights=self.particles[:, 3], axis=0)
         #print(mean)
-        
+        """
         mean_x = 0
         mean_y = 0
         mean_t = 0
@@ -241,7 +224,10 @@ class Robot():
             mean_y += self.particles[i, 1] * self.particles[i, 3]
             mean_t += self.particles[i, 2] * self.particles[i, 3]
         mean = np.array([mean_x, mean_y, mean_t])
-        return mean
+        """
+
+        var = np.average((self.particles - mean)**2, weights=self.particles[:, 3], axis=0)
+        return mean, var[3]
 
 
 # Read .dat Files using Pandas
@@ -319,6 +305,7 @@ def main():
                 label='Particles')
 
     path = []
+    var = 0
     resample = 0
     # Loop for all odometry commands
     # REPLACE RANGE WITH 0 --> LEN CONTROLS -1
@@ -326,7 +313,7 @@ def main():
     for t in range(iterations):
         t_next = odometry[t + 1][0]
         t_current = odometry[t][0]
-        t_future = odometry[t+2][0]
+        #t_future = odometry[t+2][0]
         robot.fwd_prop(odometry[t], t_next)
         # path.append(robot.particles.tolist())
 
@@ -335,7 +322,7 @@ def main():
         # If landmark timestamp within two control stamps (future-curr), use it
         # look through measurements to see what timestamps match
         for m in range(len(measurement)):
-            if measurement[m][0] >= t_current and measurement[m][0] <= t_future:
+            if measurement[m][0] >= t_current and measurement[m][0] <= t_next:
                 robot.last_measurement = m  # pick up from here next time
                 # only track landmarks, not other robots
                 if measurement[m][1] >= 6 and measurement[m][1] <= 20:
@@ -347,10 +334,10 @@ def main():
         # print(robot.eff_weights())
         # robot.eff_weights() < robot.M * 0.99
         # Resample if Neff < N/2 (not enough high weight particles)
-        if len(measurements) > 0 or robot.eff_weights() < robot.M/2:
+        if len(measurements) > 0 or var > 4e-10:
         # if robot.eff_weights() < robot.M * 0.89:
             print("resample")
-            robot.lowvar_resample()
+            robot.resample(var)
             resample += 1
         else:
             resample += 1
@@ -358,7 +345,8 @@ def main():
         # Our particle set has collapsed to one item, rebuild distro
 
         # Extract posterior
-        mean = robot.posterior()
+        mean, var = robot.posterior()
+        # print("VAR IS {}".format(var))
         path.append(mean)
         robot.position = mean[0:3]
         # print("the mean is: {}".format(mean))
@@ -370,6 +358,7 @@ def main():
     # Parse Ground Truth Path
     ground_truth_x = [x[1] for x in ground_truth]
     ground_truth_y = [y[2] for y in ground_truth]
+
     ground_truth_xs = []
     ground_truth_ys = []
     for gx in range(iterations):
