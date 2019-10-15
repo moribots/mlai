@@ -17,17 +17,8 @@ The libraries used for this code are:
 **PLEASE MAKE SURE TO RUN THE FILE IN THE ```hw_0``` DIRECTORY ON YOUR TERMINAL**
 ****
 ## Coded Exercises
-When you run ``` ./part_a.py ``` (after writing the command: ``` chmod +x part_a.py ```), you will be prompted to select an exercise: 2, 3, or 6. The numbering corresponds to the labeling in the homework description. You can also run the executable using ``` run part_a.py ```.
+When you run ``` ./run.py ``` (after writing the command: ``` chmod +x run.py ```), you will be prompted to select an exercise: 2, 3, or 6. The numbering corresponds to the labeling in the homework description. You can also run the executable using ``` run run.py ```.
 ### Exercise 2:
-#### Noise:
-If exercise 2 is selected, you will be asked whether or not to add noise to the motion model. This noise matrix generated is a gaussian based on the (arbitrary) standard deviations for x, y and theta: 5mm, 5mm and 0.012rad. These were chosen based on the Viscon's standard deviation of +/- 3mm for cartesian values. I took standard deviations slightly larger than that of the Vison. The standard deviation used for theta was also arbitrary, and was chosen experimentally based on behaviour.
-#### Motion Model:
-The motion model used in this exercise (and all exercises in this submission) is a nonlinear model mapping $$x_t$$, $$y_t$$, and $$\theta_t$$ as follows for each next iteration of time elapsed $$dt$$:
-* $$x_t=x_{t-1}+v(cos(x))dt+\epsilon_x$$
-* $$y_t=y_{t-1}+v(sin(x))dt+\epsilon_y$$
-* $$\theta_t=\theta_{t-1}+\omega dt+\epsilon_{\theta}$$
-
-where $$v$$ is linear velocity, $$\omega$$ is angular velocity, and $$\epsilon$$ is noise. 
 
 #### Operation:
 Funtion ```a2()```
@@ -38,8 +29,6 @@ The plot is animated to show the subtle change in behaviour in case noise is imp
 ![An example output for exercise 2](ex2.png)
 
 ### Exercise 3:
-#### Noise & Motion Models:
-The noise and motion models used here are identical to the ones used in exercise 2. Note that in the ``` Robot ``` Class, $$dt$$ is defined as ``` future timestamp ``` - ``` current timestamp ```. However, to ensure that the same class can be used for exercises 2 and 3, the absolute value of this operation is taken instead. 
 #### Operation:
 Function ```a3()```
 Upon selecting this exercise, you will also be asked whether or not noise should be added to the model. Subsequently, you will be asked whether to plot the full Dead Reckoning versus Ground Truth paths, or just the first 2000 iterations of the plot, where I have identified the start of the major divergence between the two. This functionality is achieved using list comprehension, by storing the first 2000 elements of the lists for the complete paths and plotting them if requested. 
@@ -51,22 +40,8 @@ In the resultant plot, the starting point for both the Dead Reckoning and Ground
 ![An example output for exercise 3 with limited iterations to show divergence](ex3_lim.png)
 ![An example output for exercise 3 with all iterations](ex3.png)
 
-### Exercise 6:
-### Measurement Model:
-The measurement model maps the acquired range and bearing to the cartersian position of the measured object (the landmark) relative to the robot, and vice versa. I will call the former model the *forward measurement model*, and the latter the *inverse measurement model*. 
-
-The inverse measurement model:
-* $$range=\sqrt{(x_t-xi-\epsilon_{xi})^2+(y_t-yi-\epsilon_{yi})^2}$$
-* $$bearing=\arctan(\frac{y_i+\epsilon_{yi}-y_t}{x_i+\epsilon_{xi}-x_t})$$
-
-where the $$i$$ subscripts denote the landmark coordinates.
-
-The forward measurement model:
-* $$x_i=x_t+range(\cos(bearing+heading))$$
-* $$y_i=y_t+range(\sin(bearing+heading))$$
-
-where heading is the $$\theta_t$$ for the robot, which is ```0``` for all evaluations in this exercise. Note that noise is only added in the inverse measurement model, as it is derived from the estimated cartersian coordinates according to the camera. 
-### Operation:
+### Exercise 6: 
+#### Operation:
 Function ```a6()```
 The ```Robot``` Class has an additional method, ```measure_a6()```, which computes the inverse model with (optional) measurement noise characterised by the standard deviations in $$x$$ and $$y$$ provided for landmarks 6, 13, and 17, followed by the forward model to quantify the error due to noise. For the error output, the resultant absolute cartesian landmark location is compared to the Ground Truth data. If the noise option is not selected, the executable will output ```0``` in some cases, but may also output a number with a factor of ```E-16``` due to the rounding associated with the ```Numpy``` trigonometric operations in the forward and reverse models. This function also outputs the range and bearing of each measurement, as requested.
 
@@ -74,5 +49,22 @@ The pose data used here as well as the chosen landmarks are provided in the home
 
 ![An example output for exercise 6 returning measurement error](ex6.png)
 
-## Final Note:
-There are various screenshots of code output in the hw_0 file with relevant names in case the code malfunctions. 
+### Exercise 7:
+#### Operation 
+Running this exercise, you have the option to plot the Particle Filter either with the commands from exercise 2, or the odometry data from exercise 6. The detailed operation of this section of code can be viewed in the report. The two functions used here are ```pf2()``` and ```pf()``` for the exercise 2 and odometry implementations (respectively) of the particle filter.
+
+PF with exercise 2:
+
+![PF2 Plot](pf_ex2.png)
+
+PF with Odometry Data:
+
+![PF3 Plot](fullPF.png)
+
+PF limited Odometry Plot:
+
+![PF3 Plot](theta_0.5.png)
+
+PF with no measurement Plot:
+
+![PF3 Plot](PF_no_mes.png)
