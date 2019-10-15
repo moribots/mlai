@@ -201,13 +201,15 @@ class Robot():
                         rb_mes = [measurements[m][2], measurements[m][3]]
                         # Likelihood of this particle representing the bel(x)
                         # given these measurements
+                        """
                         varr = 0.5 * abs(rb[0] - rb_mes[0])
                         varb = 0.5 * abs(rb[1] - rb_mes[1])
                         prob = np.array([[(1/np.sqrt(2*np.pi*varr**2))*np.exp(-0.5*((rb[0]-rb_mes[0])**2/(varr**2)))],
                                          [(1/np.sqrt(2*np.pi*varb**2))*np.exp(-0.5*((rb[1]-rb_mes[1])**2/(varb**2)))]])
-                        """prob = np.array([[1 / np.square(rb[0] - rb_mes[0])],
-                                         [1 / np.square(rb[1] - rb_mes[1])]])
                         """
+                        prob = np.array([[1 / np.square(rb[0] - rb_mes[0])],
+                                         [1 / np.square(rb[1] - rb_mes[1])]])
+                        
                         # print(prob)
                         weights_i_range = np.append(weights_i_range,
                                                     prob[0],
