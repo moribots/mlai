@@ -21,7 +21,7 @@ import pandas as pd
 
 
 # Robot class contains position attributes (x, y, theta) and move method
-class Robot():
+class Robot_a():
     def __init__(self, position):
         self.position = position  # x, y, theta at world origin
 
@@ -81,7 +81,7 @@ class Robot():
 def a2(noise_option):
     # Initialize Robot instance
     position = [0, 0, 0]
-    robot = Robot(position)
+    robot = Robot_a(position)
     path = []
     # Manual transcription of controls for Exercise 2
     control = [
@@ -156,7 +156,7 @@ def a3(odometry, ground_truth, range_response, noise_option):
         noise_matrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
 
     # Initialize Robot Instance
-    robot = Robot(position)
+    robot = Robot_a(position)
     path = [robot.position]
     control = odometry
 
@@ -252,7 +252,7 @@ def a3(odometry, ground_truth, range_response, noise_option):
 def a6(landmark_groundtruth, noise_option):
     # Initialize Robot Instance
     position = [0, 0, 0]
-    robot = Robot(position)
+    robot = Robot_a(position)
     # positions and landmark #s given in exercise
     positions = [[2, 3, 0], [0, 3, 0], [1, -2, 0]]
     landmarks = [6, 13, 17]
