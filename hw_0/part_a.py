@@ -97,7 +97,7 @@ def a2(noise_option):
         x_noise = (np.random.normal(mu, sigma_x))**2  # square std for cov
         sigma_y = 0.005
         y_noise = (np.random.normal(mu, sigma_y))**2
-        sigma_theta = 0.012
+        sigma_theta = 0.24
         theta_noise = (np.random.normal(mu, sigma_theta))**2
         noise_matrix = [[x_noise, 0, 0], [0, y_noise, 0], [0, 0, theta_noise]]
         print('The added noise in x,y,theta is: {}'.format(noise_matrix))

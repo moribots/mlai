@@ -9,14 +9,11 @@ Particle Filter Implementation
 Data interpreted with Python's Pandas library
 
 Maurice Rahme
-Student ID: 3219435
 mauricerahme2020@u.northwestern.edu
 """
 
 from __future__ import division
 import numpy as np
-import math
-import scipy.stats
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -39,10 +36,11 @@ class Robot():
 
     def measure(self, landmark, i):
         """
-        FILL DOCSTRING
+        Returns expected range and bearing measurement for each particle
+        position as reported in section 1.5.
         """
-        # Retrieve range/bearing for a particle based on known measured landmark and its std
         mu = 0
+        # Use the std in Measurement.dat to compute range and bearing
         sigma_x = landmark[3]
         sigma_y = landmark[4]
         cov_x = (np.random.normal(mu, sigma_x))**2
@@ -50,8 +48,6 @@ class Robot():
         r2l_range = np.sqrt(
             np.power(self.particles[i, 0] - landmark[1] - cov_x, 2) +
             np.power(self.particles[i, 1] - landmark[2] - cov_y, 2))
-        # print("for {}, range is {}".format(i, r2l_range))
-        # print("for {}, x is {} and y is {}".format(i, self.particles[i, 0], self.particles[i, 1]))
         # arctan2 has built-in logic to account for quadrants
         r2l_bearing = np.arctan2((landmark[2] + cov_y - self.particles[i, 1]),
                                  (landmark[1] + cov_x - self.particles[i, 0]))
@@ -63,7 +59,7 @@ class Robot():
 
             Generates a gaussian distribution of particles about the
             initial state (mean) for each x, y, theta. Number of particles
-            dictated in Class Initialisation.
+            M dictated in Class Initialisation.
 
             Args:
                 self.position (mean) ~ list: initial state (x, y, theta)
@@ -87,13 +83,11 @@ class Robot():
 
     def fwd_prop(self, control, t_next):
         """
-        FILL DOCSTRING
+        Propagates each particle forward using the motion model described in
+        section 1.1 of the report. 
         """
         dt = np.abs(control[0] - t_next)
-
-        # std[0] is linear control noise
         v_control = control[1]
-        # std[1] is angular control noise
         w_control = control[2]
 
         if w_control == 0:
@@ -102,7 +96,7 @@ class Robot():
             self.particles[:, 1] += v_control * np.sin(self.particles[:, 2]) * dt + self.motion_noise[1]
             # no heading update
         else:
-            # lin and ang velocity, move in a circle, P-101 PR
+            # lin and ang velocity, move in a circle, P-101 Probabilistic Robotics
             self.particles[:, 0] += (v_control / w_control) * (
                 -np.sin(self.particles[:, 2]) +
                 np.sin(self.particles[:, 2] + w_control * dt)) + + self.motion_noise[0]
@@ -113,20 +107,19 @@ class Robot():
 
     def weight(self, landmark_groundtruth, measurements):
         """
-        FILL DOCSTRING
+        Assign a weight to each particle according to the process described
+        in section 1.4, item 3.
         """
-        # Initialize list for landmarks we measured
+        # Initialize list for landmarks measured
         landmarks = []
-        # Initialize dist_weights as intermediate weight array
-        # to be averaged later for each landmark result
 
         # Make another array for the weights for m measurements to avg later
         weights = np.array([], dtype=np.float64)
-        # For each measurement on valid timestep, record
-        # measured landmark attributes and compare
-        # predicted range/bearing of each particle wrt it
+        # Update becomes True if landmark (not another robot) is measured
         update = False
         for m in range(len(measurements)):
+            # weights_i will be the average weight using range and bearing for
+            # measurement m
             weights_i = np.array([], dtype=np.float64)
             weights_i_range = np.array([], dtype=np.float64)
             weights_i_bearing = np.array([], dtype=np.float64)
@@ -138,9 +131,8 @@ class Robot():
                     for i in range(self.M):
                         rb = self.measure(landmarks, i)
                         rb_mes = [measurements[m][2], measurements[m][3]]
-                        # print("difference: {}".format(rb[0] - rb_mes[0]))
-                        # prob = np.array([[scipy.stats.norm(rb[0], self.sensor_noise).pdf(rb_mes[0])], [scipy.stats.norm(rb[1], self.sensor_noise).pdf(rb_mes[1])]])
-                        # Smaller distance should warrant higher weight
+                        # Likelihood of this particle representing the bel(x)
+                        # given these measurements
                         prob = np.array([[1 / np.square(rb[0] - rb_mes[0])],
                                          [1 / np.square(rb[1] - rb_mes[1])]])
                         # print(prob)
@@ -150,39 +142,42 @@ class Robot():
                         weights_i_bearing = np.append(weights_i_bearing,
                                                       prob[1],
                                                       axis=0)
-                    # weights_i_range += 1e-300
-                    # weights_i_bearing += 1e-300
+                    # Normalise weights before averaging
                     weights_i_range /= np.sum(weights_i_range)
                     weights_i_bearing /= np.sum(weights_i_bearing)
-                    # print("range w {}".format(weights_i_range))
-                    # print("bear w {}".format(weights_i_bearing))
                     weights_i = np.array([[weights_i_range],
                                           [weights_i_bearing]])
+                    # Average weights for range and bearing
                     weights_i = weights_i.mean(axis=0)
             # append by column for m measurements
             if weights_i.size > 0 and weights.size == 0:
+                # Initialise the weights array for the first measurement
                 weights = weights_i
             elif weights_i.size and len(weights.shape) > 0:
+                # Stack weight arrays for additional measurements
                 np.column_stack((weights, weights_i))
         # average weight for m columns for m measurements
         if update is True:
             if len(weights.shape) > 1:
+                # If weight has more than 1 column, average all
                 weights = weights.mean(axis=0)
+            # Weights updated multiplicatively
             self.particles[:, 3] *= weights
+            # Normalise again
             self.particles[:, 3] /= np.sum(self.particles[:, 3])
-
-    def eff_weights(self):
-        """
-        """
-        w_eff = 1.0 / np.sum(self.particles[:, 3]**2)
-        return w_eff
 
     def resample(self, var):
         """
+        Low-variance resampling algorithm described in section 1.4
+        item 5
         """
+        # Empty intermediate set chi
         X = np.empty((self.M, 4))
+        # randomly generated partitioning constant
         r = np.random.random() / self.M
-        c = self.particles[0, 3]  # first weight element
+        # Weight of first particle
+        c = self.particles[0, 3]
+        # Index of particles to be sampled
         i = 0
         for m in range(self.M):
             u = r + (m * 1 / (self.M - 1))
@@ -196,8 +191,9 @@ class Robot():
         self.particles = X
         # re-normalise
         self.particles[:, 3] /= np.sum(self.particles[:, 3])
+        # If variance below threshold, add random particles around
+        # last posterior to increase variance
         if var < 3e-10:
-            # resampling needs additional variance
             for i in range(self.M):
                 if i % 100 == 0:
                     self.particles[i, 0] = np.random.normal(
@@ -211,21 +207,10 @@ class Robot():
 
     def posterior(self):
         """
+        Extract mean and variance of posterior as reported in section 1.4
+        item 7
         """
         mean = np.average(self.particles, weights=self.particles[:, 3], axis=0)
-        #print(mean)
-        """
-        mean_x = 0
-        mean_y = 0
-        mean_t = 0
-        for i in range(self.M):
-
-            mean_x += self.particles[i, 0] * self.particles[i, 3]
-            mean_y += self.particles[i, 1] * self.particles[i, 3]
-            mean_t += self.particles[i, 2] * self.particles[i, 3]
-        mean = np.array([mean_x, mean_y, mean_t])
-        """
-
         var = np.average((self.particles - mean)**2, weights=self.particles[:, 3], axis=0)
         return mean, var[3]
 
@@ -269,27 +254,23 @@ def main():
         3, "ds0/ds0_Barcodes.dat",
         ["Subject #", "Barcode #"])
 
-    # Convert Measurement.dat subject # into actual subject # for landmark_groundtruth using barcode.dat
+    # Convert Measurement.dat subject # into Landmark subject # w barcode.dat
     for b in range(len(barcodes)):
         for mes in range(len(measurement)):
             if barcodes[b][1] == measurement[mes][1]:
                 measurement[mes][1] = barcodes[b][0]
-    # for mi in range(len(measurement)):
-    #    print(measurement[mi][1])
 
-
-
-    position = [1.29812900, 1.88315210, 2.82870000]  # Set equal to Ground Truth Initial
+    # Initial position at ground truth
+    position = [1.29812900, 1.88315210, 2.82870000]
     sensor_noise = [0.1, 0.1, 0.01]
     motion_noise = [0.0001, 0.0001]
-    std = [0.0002, 0.0002, 1.5] # remove 1 zero from x y
+    std = [0.0002, 0.0002, 1.5]
+    # Number of particles
     M = 1000
     # Initialize robot instance of Robot class
     robot = Robot(position, M, sensor_noise, motion_noise)
     # Initialise particles normally distributed around starting state
     robot.init_known_particles(std)
-    print(robot.particles)
-    print(robot.eff_weights())
 
     # Initialise Plot
     plt.autoscale(enable=True, axis='both', tight=None)
@@ -302,54 +283,43 @@ def main():
                 robot.particles[:, 1],
                 alpha=0.2,
                 color='darkviolet',
-                label='Particles')
-
+                label=' Initial Particles')
+    # Initialise path
     path = []
     var = 0
-    resample = 0
     # Loop for all odometry commands
-    # REPLACE RANGE WITH 0 --> LEN CONTROLS -1
     iterations = 10000
     for t in range(iterations):
         t_next = odometry[t + 1][0]
         t_current = odometry[t][0]
-        #t_future = odometry[t+2][0]
         robot.fwd_prop(odometry[t], t_next)
-        # path.append(robot.particles.tolist())
 
         # Initialize measurements list used in this t
         measurements = []
         # If landmark timestamp within two control stamps (future-curr), use it
-        # look through measurements to see what timestamps match
         for m in range(len(measurement)):
             if measurement[m][0] >= t_current and measurement[m][0] <= t_next:
-                robot.last_measurement = m  # pick up from here next time
+                robot.last_measurement = m-10  # pick up from here next time
                 # only track landmarks, not other robots
                 if measurement[m][1] >= 6 and measurement[m][1] <= 20:
                     measurements.append(measurement[m])
+        # If measurement list contains measurement 
         if len(measurements) > 0:
-            print("measure at t = {}".format(t))
+            print("measure at t = {} of 95812".format(t))
+            # Weigh particles using measurement
             robot.weight(landmark_groundtruth, measurements)
-
-        # print(robot.eff_weights())
-        # robot.eff_weights() < robot.M * 0.99
-        # Resample if Neff < N/2 (not enough high weight particles)
-        if len(measurements) > 0 or var > 4e-10:
-        # if robot.eff_weights() < robot.M * 0.89:
-            print("resample")
+        # If var is too high, weight is too concentrated
+        # so resample
+        if var > 4e-10:
+            # print("resample")
             robot.resample(var)
-            resample += 1
-        else:
-            resample += 1
-        # elif robot.eff_weights() > robot.M * 0.9:
-        # Our particle set has collapsed to one item, rebuild distro
 
-        # Extract posterior
+        # Extract posterior and var
         mean, var = robot.posterior()
-        # print("VAR IS {}".format(var))
         path.append(mean)
         robot.position = mean[0:3]
-        # print("the mean is: {}".format(mean))
+
+    ##################### PLOTTING ###############################
 
     # Parse F Path
     path_x = [x[0] for x in path]
@@ -365,7 +335,6 @@ def main():
         ground_truth_xs.append(ground_truth_x[gx])
     for gy in range(iterations):
         ground_truth_ys.append(ground_truth_y[gy])
-    
 
     plt.plot(path_x, path_y, '-k', label='Particle Filter Path')
     plt.plot(ground_truth_xs, ground_truth_ys, '-g', label='Ground Truth Data')
@@ -401,15 +370,7 @@ def main():
                 color='r',
                 marker='x',
                 label='Landmarks')
-
-    # Plot particles
-    plt.scatter(robot.particles[:, 0],
-                robot.particles[:, 1],
-                alpha=0.2,
-                color='r',
-                label='Particles')
-    # print(len(robot.particles))
-    #plt.legend()
+    plt.legend()
     plt.show()
 
 
