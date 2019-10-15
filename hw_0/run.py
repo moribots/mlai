@@ -17,6 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
+
 # Robot class for part a
 class Robot_a():
     def __init__(self, position):
@@ -72,6 +73,7 @@ class Robot_a():
         xy = [x_l, y_l]
         rbxy = [rb, xy]
         return rbxy
+
 
 # Robot class for part b
 class Robot():
@@ -521,7 +523,61 @@ def a6(landmark_groundtruth, noise_option):
 
 # Full Particle Filter with exercise 2 data
 def pf2():
-    return True
+    # Initialize Robot instance
+    position = [0, 0, 0]
+    sensor_noise = [0.1, 0.1, 0.01]
+    motion_noise = [0.0001, 0.0001]
+    std = [0.0002, 0.0002, 1.5]
+    # Number of particles
+    M = 1000
+    # Initialize robot instance of Robot class
+    robot = Robot(position, M, sensor_noise, motion_noise)
+    # Initialise particles normally distributed around starting state
+    robot.init_known_particles(std)
+    path = []
+    # Manual transcription of controls for Exercise 2
+    control = [
+        position, [1, 0.5, 0], [1, 0, -1 / (2 * np.pi)], [1, 0.5, 0],
+        [1, 0, 1 / (2 * np.pi)], [1, 0.5, 0]]
+
+    # Initialize Plot
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Particle Filter Plot for Ex2 Commands')
+    plt.ylabel('y [m]')
+    plt.xlabel('x [m]')
+
+    t_next = 0
+
+    for t in range(len(control)):
+        robot.fwd_prop(control[t], t_next)
+        mean, var = robot.posterior()
+        path.append(mean)
+
+    # Parse F Path
+    path_x = [x[0] for x in path]
+    path_y = [y[1] for y in path]
+
+    # Plot inital position
+    plt.plot(path_x[0],
+             path_y[0],
+             color='gold',
+             marker='o',
+             markersize=10,
+             label='Starting Point')
+
+    # Plot final position (Particle Filter)
+    plt.plot(path_x[-1],
+             path_y[-1],
+             color='darkviolet',
+             marker='o',
+             markersize=5,
+             label='Endpoints')
+
+    # Plot Path
+    plt.plot(path_x, path_y, '-k', label='Particle Filter Path')
+
+    plt.legend()
+    plt.show()
 
 
 # Full Particle Filter with Odometry Data
@@ -619,7 +675,7 @@ def pf(odometry, ground_truth, measurement, barcodes, landmark_groundtruth):
              markersize=10,
              label='Starting Point')
 
-    # Plot final position (Dead Reckoning)
+    # Plot final position (Particle Filter)
     plt.plot(path_x[-1],
              path_y[-1],
              color='darkviolet',
