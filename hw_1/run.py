@@ -53,12 +53,14 @@ class Grid():
             for x in range(len(self.cell_xmin)):
                 # print("x is {}".format(x))
                 if self.landmarks[ob][0] >= self.cell_xmin[
-                        x] and self.landmarks[ob][0] <= self.cell_xmin[x] + 1:
+                        x] and self.landmarks[ob][
+                            0] <= self.cell_xmin[x] + self.cell_size:
                     index_x.append(x)
 
             for y in range(len(self.cell_ymin)):
                 if self.landmarks[ob][1] >= self.cell_ymin[
-                        y] and self.landmarks[ob][1] <= self.cell_ymin[y] + 1:
+                        y] and self.landmarks[ob][
+                            1] <= self.cell_ymin[y] + self.cell_size:
                     index_y.append(y)
 
             if len(index_x) == 1 and len(index_y) == 1:
@@ -125,6 +127,7 @@ def plot(landmark_list):
     ax.grid(which='major', color='darkviolet', linestyle='--')
     ax.grid(which='minor', color='darkviolet', linestyle='--')
 
+    plt.title('A* Search')
     plt.axis([-2, 5, -6, 6])
     plt.xlabel('x position [m]')
     plt.ylabel('y position [m]')
