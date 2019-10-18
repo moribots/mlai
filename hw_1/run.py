@@ -33,7 +33,7 @@ class Grid():
     """DOCSTRING
     """
     def __init__(self, cell_size, landmarks):
-        self.xmin, self.xmax = -2, 6
+        self.xmin, self.xmax = -2, 5
         self.ymin, self.ymax = -6, 6
         self.cell_size = cell_size
         self.cell_xmin = np.arange(self.xmin, self.xmax, self.cell_size)
@@ -96,6 +96,8 @@ def read_dat(start_index, file_path, usecols):
 
 
 def plot(landmark_list):
+    """DOCSTRING
+    """
     # Initialize grid with size and landmarks
     a_grid = Grid(1, landmark_list)
 
@@ -131,6 +133,17 @@ def plot(landmark_list):
     plt.axis([-2, 5, -6, 6])
     plt.xlabel('x position [m]')
     plt.ylabel('y position [m]')
+
+    # Plot landmarks
+    # Parse F Path
+    landmark_x = [x[0] for x in landmark_list]
+    landmark_y = [y[1] for y in landmark_list]
+    plt.scatter(landmark_x,
+                landmark_y,
+                alpha=1,
+                color='r',
+                label='Obstacles',
+                s=5)
 
     plt.show()
 
