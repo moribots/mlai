@@ -14,6 +14,7 @@ mauricerahme2020@u.northwestern.edu
 
 from __future__ import division
 import numpy as np
+from pprint import pprint
 import matplotlib.pyplot as plt
 from matplotlib.ticker import (AutoMinorLocator, MultipleLocator)
 import matplotlib.patches as patches
@@ -136,9 +137,10 @@ class A_star():
         x_dist = abs(node1.position[0] - node2.position[0])
         y_dist = abs(node1.position[1] - node2.position[1])
         if x_dist > y_dist:
-            cost = 14 * y_dist + 10 * (x_dist - y_dist)
+            cost = 1.4 * y_dist + 1.0 * (x_dist - y_dist)
         else:
-            cost = 14 * x_dist + 10 * (y_dist - x_dist)
+            cost = 1.4 * x_dist + 1.0 * (y_dist - x_dist)
+        # cost = np.sqrt(x_dist**2 + y_dist**2)
         return cost
 
     def get_neighbours(self, node):
@@ -155,7 +157,7 @@ class A_star():
                     check_y = node.position[1] + y
 
                     # ensure neighbour within grid bounds
-                    if check_x >= 0 and check_x < self.grid.xmax and check_y >= 0 and check_y < self.grid.ymax:
+                    if check_x >= 0 and check_x < (self.grid.xmax - self.grid.xmin) and check_y >= 0 and check_y < (self.grid.ymax - self.grid.ymin):
                         neighbours.append([
                             check_x, check_y
                         ])  # add positions to neighbour lit and compare later
@@ -166,7 +168,7 @@ class A_star():
         self.goal_node = self.current_node
 
         while self.current_node.position != self.start_node.position:
-            self.path.append(current_node.position)
+            self.path.append(self.current_node.position)
             self.current_node = self.current_node.parent
 
         self.path.reverse()  # reverse path
@@ -185,16 +187,24 @@ class A_star():
         # REPLACE WITH HEAPQ FOR FASTER LOOP
         it = 0
         while len(self.open_list) > 0:
+            # print(it)
+            # print("\n")
+            # print("Open List Size: {}".format(len(self.open_list)))
+            # print("The current node is:")
+            # pprint(vars(self.current_node))
             it += 1
 
             self.current_node = self.open_list[0]
 
             for i in range(1, len(
                     self.open_list)):  # start at 1 since 0 is current
-                if self.open_list[i].f < self.current_node.f or (
-                        self.open_list[i].f == self.current_node.f
-                        and self.open_list[i].hcost < self.current_node.hcost):
+                # print(" node i cost: {}".format(self.open_list[i].hcost))
+                if self.open_list[i].f < self.current_node.f:
                     self.current_node = self.open_list[i]
+                elif self.open_list[i].f == self.current_node.f and self.open_list[i].hcost < self.current_node.hcost:
+                    self.current_node = self.open_list[i]
+            # print("The new current node is:")
+            # pprint(vars(self.current_node))
 
             index_to_pop = self.open_list.index(self.current_node)
             self.open_list.pop(index_to_pop)
@@ -202,10 +212,11 @@ class A_star():
 
             if self.current_node.position == self.goal_node.position:
                 return self.trace_path(self.start_node, self.current_node)
-                print("goal found after {} iterations!".format(it))
+                # print("goal found after {} iterations!".format(it))
                 break
 
             for neighbour in self.get_neighbours(self.current_node):
+                # print("Neighbour pos: {}".format(neighbour))
                 skip = False
                 closed = False
                 opened = False
@@ -235,7 +246,7 @@ class A_star():
                         opened = True
 
                 # if in none of these lists, create new node
-                if closed is False and opened is False and obstacle_node is False and skip is False:
+                if closed is False and opened is False and obstacle_node is False:
                     neighbour_temp = Node(neighbour, None, 0, 0, False)
                     h_cost = self.get_dist(neighbour_temp, self.goal_node)
                     g_cost = self.current_node.gcost + self.get_dist(
@@ -243,6 +254,8 @@ class A_star():
                     neighbour_node = Node(neighbour, self.current_node, g_cost,
                                           h_cost, False)
                     self.open_list.append(neighbour_node)
+                    # print("The chosen node is:")
+                    # pprint(vars(neighbour_node))
 
                 elif skip is True:
                     continue
@@ -254,6 +267,8 @@ class A_star():
                     if g_cost < neighbour_node.gcost or self.open_list:
                         neighbour_node.gcost = g_cost
                         neighbour_node.parent = self.current_node
+                    # print("The chosen node is:")
+                    # pprint(vars(neighbour_node))
 
 
 """
