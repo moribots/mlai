@@ -19,6 +19,8 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import (AutoMinorLocator, MultipleLocator)
 import matplotlib.patches as patches
 from matplotlib.path import Path
+from matplotlib import pylab
+from matplotlib.font_manager import FontProperties
 import pandas as pd
 
 
@@ -157,7 +159,10 @@ class A_star():
                     check_y = node.position[1] + y
 
                     # ensure neighbour within grid bounds
-                    if check_x >= 0 and check_x < (self.grid.xmax - self.grid.xmin) and check_y >= 0 and check_y < (self.grid.ymax - self.grid.ymin):
+                    if check_x >= 0 and check_x < (
+                            self.grid.xmax -
+                            self.grid.xmin) and check_y >= 0 and check_y < (
+                                self.grid.ymax - self.grid.ymin):
                         neighbours.append([
                             check_x, check_y
                         ])  # add positions to neighbour lit and compare later
@@ -202,7 +207,9 @@ class A_star():
                 # print(" node i cost: {}".format(self.open_list[i].hcost))
                 if self.open_list[i].f < self.current_node.f:
                     self.current_node = self.open_list[i]
-                elif self.open_list[i].f == self.current_node.f and self.open_list[i].hcost < self.current_node.hcost:
+                elif self.open_list[
+                        i].f == self.current_node.f and self.open_list[
+                            i].hcost < self.current_node.hcost:
                     self.current_node = self.open_list[i]
             # print("The new current node is:")
             # pprint(vars(self.current_node))
@@ -374,8 +381,26 @@ def plot(landmark_list, a_grid, path):
                 color='r',
                 label='Obstacles',
                 s=5)
-
+    # plt.legend()
     plt.show()
+
+
+def a3(landmark_list, start, goal):
+    return True
+
+
+def a5(landmark_list, start, goal):
+    grid_size = 1
+    a_grid = Grid(grid_size, landmark_list)
+    astar = A_star(a_grid, start, goal)
+
+    path = astar.plan()
+
+    plot(landmark_list, a_grid, path)
+
+
+def a7(landmark_list, start, goal):
+    return True
 
 
 # Main
@@ -389,26 +414,30 @@ def main():
         landmark_list.append(
             [landmark_groundtruth[l][1], landmark_groundtruth[l][2]])
 
-    grid_size = 1
-    a_grid = Grid(grid_size, landmark_list)
-
-    start = [0.5, -1.5]
-    goal = [0.5, 1.5]
-    astar = A_star(a_grid, start, goal)
-
-    path = astar.plan()
-
-    print(path)
-
-    plot(landmark_list, a_grid, path)
-    """
-
     # Select Exercise
-    exercise = raw_input('Select an exercise [1,3,5,6,7]')
-    if exercise == '1':
-        # Exercise 1
-        x = 1
-    """
+    exercise = raw_input('Select an exercise [3,5,7]')
+    if exercise == '3':
+        # Exercise 2: Naive Search
+        a3(landmark_list, start, goal)
+    elif exercise == '5':
+        # Exercise 5: A* Search
+        input = raw_input('Select a set of coordinates [A, B, C]').upper()
+        if input == 'A':
+            start = [0.5, -1.5]
+            goal = [0.5, 1.5]
+        elif input == 'B':
+            start = [4.5, 3.5]
+            goal = [4.5, -1.5]
+        elif input == 'C':
+            start = [-0.5, 5.5]
+            goal = [1.5, -3.5]
+        print(start)
+        print(goal)
+
+        a5(landmark_list, start, goal)
+    elif exercise == '7':
+        # Exerise 7: A* with small grid
+        a7(landmark_list, start, goal)
 
 
 if __name__ == "__main__":
