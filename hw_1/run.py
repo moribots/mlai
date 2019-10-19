@@ -82,7 +82,7 @@ class Node():
     """
     # Used in heap queue (priority queue for min)
     def __lt__(self, neighbour):  # overload operator for heap queue
-        return self.f < neighbour.f  # eval heapq based on .f value
+        return self.f + self.f < neighbour.f + neighbour.h # eval heapq based on .f value
     """
 
 
@@ -128,10 +128,10 @@ class A_star():
     def grid2world(self, coord):
         """ Returns world coordinates of fed grid coordinate values
         """
-        return [
-            coord[0] + self.grid.cell_size / 2,
-            coord[1] + self.grid.cell_size / 2
-        ]
+        c = self.grid.cell_size
+        x = c * (coord[0] + (c / 2)) + self.grid.xmin
+        y = c * (coord[1] + (c / 2)) + self.grid.ymin
+        return [x, y]
 
     def get_dist(self, node1, node2):
         x_dist = abs(node1.position[0] - node2.position[0])
@@ -178,6 +178,7 @@ class A_star():
             self.path[i] = self.grid2world(self.path[i])
 
         path = self.path
+        path.insert(0, self.start)
 
         return path
 
@@ -308,10 +309,38 @@ def plot(landmark_list, a_grid, path):
     # plt.imshow adds colour to higher values
     # used to show occupied cells
     plt.imshow(a_grid.centres.T,
-               cmap="Purples",
+               cmap="copper_r",
                origin='lower',
                extent=[a_grid.xmin, a_grid.xmax, a_grid.ymin, a_grid.ymax])
     # extent is left, right, bottom, top
+
+    # Plot Path
+    path_x = [x[0] for x in path]
+    path_y = [y[1] for y in path]
+    plt.plot(path_x, path_y, color='darkviolet', label='A* Path')
+
+    # Plot Path Points
+    plt.scatter(path_x,
+                path_y,
+                color='darkviolet',
+                marker='o',
+                label='Path Points')
+
+    # Plot Start
+    plt.plot(path_x[0],
+             path_y[0],
+             color='g',
+             marker='o',
+             markersize=10,
+             label='Start')
+
+    # Plot Goal
+    plt.plot(path_x[-1],
+             path_y[-1],
+             color='darkviolet',
+             marker='o',
+             markersize=10,
+             label='Goal')
 
     # Set axis ranges
     ax.set_xlim(a_grid.xmin, a_grid.xmax)
