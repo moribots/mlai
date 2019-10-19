@@ -74,12 +74,15 @@ class Node():
         self.parent = parent  # pass another node here
         self.gcost = gcost
         self.hcost = hcost
+
         self.f = self.gcost + self.hcost
         self.obstacle = obstacle  # T or F
 
+    """
     # Used in heap queue (priority queue for min)
     def __lt__(self, neighbour):  # overload operator for heap queue
         return self.f < neighbour.f  # eval heapq based on .f value
+    """
 
 
 class A_star():
@@ -94,9 +97,12 @@ class A_star():
         self.open_list = []
         self.closed_list = []
         self.path = []  # this is in world coord
-        self.start_node = Node(self.start_grid, None, None, None, False)
-        self.goal_node = Node(position=self.goal_grid, None, None, None, False)
-        self.current_node = Node(self.start_grid, None, 0, self.get_dist(self.start_node, self.goal_node), False)  # init at start  -- NEED TO REPLACE 2ND 0 WITH CALC HEUR FCN
+        self.start_node = Node(self.start_grid, None, 0, 0, False)
+        self.goal_node = Node(self.goal_grid, None, 0, 0, False)
+        self.current_node = Node(
+            self.start_grid, None, 0,
+            self.get_dist(self.start_node, self.goal_node), False
+        )  # init at start  -- NEED TO REPLACE 2ND 0 WITH CALC HEUR FCN
 
     def obstacle_list(self):
         indxs = np.where(self.grid.centres == 1000)
@@ -150,7 +156,9 @@ class A_star():
 
                     # ensure neighbour within grid bounds
                     if check_x >= 0 and check_x < self.grid.xmax and check_y >= 0 and check_y < self.grid.ymax:
-                        neighbours.append([check_x, check_y])  # add positions to neighbour lit and compare later
+                        neighbours.append([
+                            check_x, check_y
+                        ])  # add positions to neighbour lit and compare later
 
         return neighbours
 
@@ -161,31 +169,40 @@ class A_star():
             self.path.append(current_node.position)
             self.current_node = self.current_node.parent
 
-        self.path.reverse()  # reverse path 
+        self.path.reverse()  # reverse path
 
+        # bring back to world coord
         for i in range(len(self.path)):
             self.path[i] = self.grid2world(self.path[i])
 
+        path = self.path
 
-
+        return path
 
     def plan(self):
         self.open_list.append(self.current_node)
 
         # REPLACE WITH HEAPQ FOR FASTER LOOP
+        it = 0
         while len(self.open_list) > 0:
+            it += 1
 
             self.current_node = self.open_list[0]
 
-            for i in range(1, len(self.open_list)):  # start at 1 since 0 is current
-                if self.open_list[i].f < self.current_node.f or (if self.open_list[i].f == self.current_node.f and self.open_list[i].hcost < self.current_node.hcost):
+            for i in range(1, len(
+                    self.open_list)):  # start at 1 since 0 is current
+                if self.open_list[i].f < self.current_node.f or (
+                        self.open_list[i].f == self.current_node.f
+                        and self.open_list[i].hcost < self.current_node.hcost):
                     self.current_node = self.open_list[i]
 
-            self.open_list.pop(self.current_node)
+            index_to_pop = self.open_list.index(self.current_node)
+            self.open_list.pop(index_to_pop)
             self.closed_list.append(self.current_node)
 
             if self.current_node.position == self.goal_node.position:
-                self.trace_path(self.start_node, self.current_node)
+                return self.trace_path(self.start_node, self.current_node)
+                print("goal found after {} iterations!".format(it))
                 break
 
             for neighbour in self.get_neighbours(self.current_node):
@@ -196,47 +213,55 @@ class A_star():
 
                 # see if matches coords in closed list
                 for node in self.closed_list:
-                    if neighbour[0] == node.position[0] and neighbour[1] == node.position[1]:
+                    if neighbour[0] == node.position[0] and neighbour[
+                            1] == node.position[1]:
                         # node exists in closed lit
                         closed = True
                         skip = True
 
                 # see if index matches obstacle list
                 for obstacle in self.obstacle_list:
-                    if neighbour[0] == obstacle.position[0] and neighbour[1] == obstacle.position[1]:
+                    if neighbour[0] == obstacle[0] and neighbour[
+                            1] == obstacle[1]:
                         obstacle_node = True
                         skip = True
 
                 # see if matches coords in open list
                 for node in self.open_list:
-                    if neighbour[0] == node.position[0] and neighbour[1] == node.position[1]:
+                    if neighbour[0] == node.position[0] and neighbour[
+                            1] == node.position[1]:
                         # node exists in open list
                         neighbour_node = node
                         opened = True
 
                 # if in none of these lists, create new node
                 if closed is False and opened is False and obstacle_node is False and skip is False:
-                    neighbour_temp = Node(neighbour, None, None, None, False)
+                    neighbour_temp = Node(neighbour, None, 0, 0, False)
                     h_cost = self.get_dist(neighbour_temp, self.goal_node)
-                    g_cost = self.current_node.gcost + self.get_dist(neighbour_temp, self.current_node)
-                    neighbour_node = Node(neighbour, self.current_node, g_cost, h_cost, False)
+                    g_cost = self.current_node.gcost + self.get_dist(
+                        neighbour_temp, self.current_node)
+                    neighbour_node = Node(neighbour, self.current_node, g_cost,
+                                          h_cost, False)
                     self.open_list.append(neighbour_node)
 
-                elif skip = True:
+                elif skip is True:
                     continue
                 elif open is True:
                     # h_cost = self.get_dist(neighbour_node, self.goal_node)
-                    g_cost = self.current_node.gcost + self.get_dist(neighbour_node, self.current_node)
+                    g_cost = self.current_node.gcost + self.get_dist(
+                        neighbour_node, self.current_node)
 
                     if g_cost < neighbour_node.gcost or self.open_list:
                         neighbour_node.gcost = g_cost
                         neighbour_node.parent = self.current_node
+
 
 """
 class Naive_star():
     def __init__(self, a_grid):
         self.x = 0
 """
+
 
 # Read .dat Files using Pandas
 def read_dat(start_index, file_path, usecols):
@@ -258,11 +283,9 @@ def read_dat(start_index, file_path, usecols):
     return data
 
 
-def plot(landmark_list):
+def plot(landmark_list, a_grid, path):
     """DOCSTRING
     """
-    # Initialize grid with size and landmarks
-    a_grid = Grid(1, landmark_list)
 
     # Initialise Plot
     fig, ax = plt.subplots()
@@ -322,7 +345,18 @@ def main():
         landmark_list.append(
             [landmark_groundtruth[l][1], landmark_groundtruth[l][2]])
 
-    plot(landmark_list)
+    grid_size = 1
+    a_grid = Grid(grid_size, landmark_list)
+
+    start = [0.5, -1.5]
+    goal = [0.5, 1.5]
+    astar = A_star(a_grid, start, goal)
+
+    path = astar.plan()
+
+    print(path)
+
+    plot(landmark_list, a_grid, path)
     """
 
     # Select Exercise
