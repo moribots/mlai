@@ -43,20 +43,11 @@ class Grid():
         indxs = np.where(self.centres == 1000)
         coords = list(zip(indxs[0], indxs[1]))
 
+        # Evaluate neighbours in +-3 block
         for c in range(len(coords)):
-            # Diagonal add
-            self.centres[coords[c][0] + 1, coords[c][1] + 1] = 1000
-            self.centres[coords[c][0] - 1, coords[c][1] - 1] = 1000
-            self.centres[coords[c][0] + 1, coords[c][1] - 1] = 1000
-            self.centres[coords[c][0] - 1, coords[c][1] + 1] = 1000
-
-            # Horiz add
-            self.centres[coords[c][0] + 1, coords[c][1]] = 1000
-            self.centres[coords[c][0] - 1, coords[c][1]] = 1000
-
-            # Vert add
-            self.centres[coords[c][0], coords[c][1] + 1] = 1000
-            self.centres[coords[c][0], coords[c][1] - 1] = 1000
+            for x in range(-3, 4):
+                for y in range(-3, 4):
+                    self.centres[coords[c][0] + x, coords[c][1] + y] = 1000
 
     def obstacles(self):
         """DOCSTRING
@@ -105,7 +96,7 @@ class Node():
         # eval heapq based on this value
         # of f + h, which encompasses cases where
         # f = f and we must choose using h value
-        return self.heap < neighbour.heap
+        return self.f < neighbour.f
 
 
 class A_star():
@@ -158,11 +149,13 @@ class A_star():
     def get_dist(self, node1, node2):
         x_dist = abs(node1.position[0] - node2.position[0])
         y_dist = abs(node1.position[1] - node2.position[1])
+        """
         if x_dist > y_dist:
             cost = 1.4 * y_dist + 1.0 * (x_dist - y_dist)
         else:
             cost = 1.4 * x_dist + 1.0 * (y_dist - x_dist)
-        # cost = np.sqrt(x_dist**2 + y_dist**2)
+        """
+        cost = np.sqrt(x_dist**2 + y_dist**2)
         return cost
 
     def get_neighbours(self, node):
@@ -225,7 +218,7 @@ class A_star():
             # pprint(vars(self.current_node))
             it += 1
 
-            self.current_node = self.open_list[0]
+            # self.current_node = self.open_list[0]
             """
             # REPLACED WITH HEAPQ FOR FASTER LOOP
             for i in range(1, len(
@@ -343,7 +336,7 @@ def read_dat(start_index, file_path, usecols):
     return data
 
 
-def plot(landmark_list, a_grid, path):
+def plot(landmark_list, a_grid, path, neighbours, exp_nodes):
     """DOCSTRING
     """
 
@@ -353,10 +346,30 @@ def plot(landmark_list, a_grid, path):
     # plt.imshow adds colour to higher values
     # used to show occupied cells
     plt.imshow(a_grid.centres.T,
-               cmap="copper_r",
+               cmap=plt.cm.binary,
                origin='lower',
                extent=[a_grid.xmin, a_grid.xmax, a_grid.ymin, a_grid.ymax])
     # extent is left, right, bottom, top
+
+    # Plot Neighbour Nodes
+    n_x = [x[0] for x in neighbours]
+    n_y = [y[1] for y in neighbours]
+    plt.scatter(n_x,
+                n_y,
+                color='gold',
+                marker='*',
+                s=20 * a_grid.cell_size,
+                label='Exp Nodes')
+
+    # Plot Expanded Nodes
+    exp_x = [x[0] for x in exp_nodes]
+    exp_y = [y[1] for y in exp_nodes]
+    plt.scatter(exp_x,
+                exp_y,
+                color='gold',
+                marker='*',
+                s=20 * a_grid.cell_size,
+                label='Exp Nodes')
 
     # Plot Path
     path_x = [x[0] for x in path]
@@ -434,7 +447,19 @@ def a5(landmark_list, start, goal):
 
     path = astar.plan()
 
-    plot(landmark_list, a_grid, path)
+    open_list = astar.open_list
+    open_l = []
+    for node in open_list:
+        position = astar.grid2world(node.position)
+        open_l.append(position)
+
+    closed_list = astar.closed_list
+    closed_l = []
+    for node in closed_list:
+        position = astar.grid2world(node.position)
+        closed_l.append(position)
+
+    plot(landmark_list, a_grid, path, open_l, closed_l)
 
 
 def a7(landmark_list, start, goal):
@@ -444,7 +469,19 @@ def a7(landmark_list, start, goal):
 
     path = astar.plan()
 
-    plot(landmark_list, a_grid, path)
+    open_list = astar.open_list
+    open_l = []
+    for node in open_list:
+        position = astar.grid2world(node.position)
+        open_l.append(position)
+
+    closed_list = astar.closed_list
+    closed_l = []
+    for node in closed_list:
+        position = astar.grid2world(node.position)
+        closed_l.append(position)
+
+    plot(landmark_list, a_grid, path, open_l, closed_l)
 
 
 # Main
@@ -461,7 +498,17 @@ def main():
     # Select Exercise
     exercise = raw_input('Select an exercise [3,5,7]')
     if exercise == '3':
-        # Exercise 2: Naive Search
+        # Exercise 3: Naive Search
+        input = raw_input('Select a set of coordinates [A, B, C]').upper()
+        if input == 'A':
+            start = [0.5, -1.5]
+            goal = [0.5, 1.5]
+        elif input == 'B':
+            start = [4.5, 3.5]
+            goal = [4.5, -1.5]
+        elif input == 'C':
+            start = [-0.5, 5.5]
+            goal = [1.5, -3.5]
         a3(landmark_list, start, goal)
     elif exercise == '5':
         # Exercise 5: A* Search
