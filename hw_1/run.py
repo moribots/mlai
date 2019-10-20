@@ -15,12 +15,9 @@ mauricerahme2020@u.northwestern.edu
 from __future__ import division
 import numpy as np
 from pprint import pprint
+import heapq
 import matplotlib.pyplot as plt
 from matplotlib.ticker import (AutoMinorLocator, MultipleLocator)
-import matplotlib.patches as patches
-from matplotlib.path import Path
-from matplotlib import pylab
-from matplotlib.font_manager import FontProperties
 import pandas as pd
 
 
@@ -39,6 +36,27 @@ class Grid():
         self.prev_x = 0
         self.prev_y = 0
         self.obstacles()
+        if self.cell_size < 0.3:
+            self.inflate_obstacles()
+
+    def inflate_obstacles(self):
+        indxs = np.where(self.centres == 1000)
+        coords = list(zip(indxs[0], indxs[1]))
+
+        for c in range(len(coords)):
+            # Diagonal add
+            self.centres[coords[c][0] + 1, coords[c][1] + 1] = 1000
+            self.centres[coords[c][0] - 1, coords[c][1] - 1] = 1000
+            self.centres[coords[c][0] + 1, coords[c][1] - 1] = 1000
+            self.centres[coords[c][0] - 1, coords[c][1] + 1] = 1000
+
+            # Horiz add
+            self.centres[coords[c][0] + 1, coords[c][1]] = 1000
+            self.centres[coords[c][0] - 1, coords[c][1]] = 1000
+
+            # Vert add
+            self.centres[coords[c][0], coords[c][1] + 1] = 1000
+            self.centres[coords[c][0], coords[c][1] - 1] = 1000
 
     def obstacles(self):
         """DOCSTRING
@@ -79,13 +97,15 @@ class Node():
         self.hcost = hcost
 
         self.f = self.gcost + self.hcost
+        self.heap = self.f + self.hcost  # Used for finding heapmin
         self.obstacle = obstacle  # T or F
 
-    """
     # Used in heap queue (priority queue for min)
     def __lt__(self, neighbour):  # overload operator for heap queue
-        return self.f + self.f < neighbour.f + neighbour.h # eval heapq based on .f value
-    """
+        # eval heapq based on this value
+        # of f + h, which encompasses cases where
+        # f = f and we must choose using h value
+        return self.heap < neighbour.heap
 
 
 class A_star():
@@ -147,6 +167,7 @@ class A_star():
 
     def get_neighbours(self, node):
         neighbours = []
+        # print("trying to get neighbours")
 
         # Evaluate about 3x3 block
         for x in range(-1, 2):  # x from -1 to 1
@@ -157,12 +178,15 @@ class A_star():
                 else:
                     check_x = node.position[0] + x
                     check_y = node.position[1] + y
+                    # print("Checks: {}".format([check_x, check_y]))
 
                     # ensure neighbour within grid bounds
                     if check_x >= 0 and check_x < (
-                            self.grid.xmax -
-                            self.grid.xmin) and check_y >= 0 and check_y < (
-                                self.grid.ymax - self.grid.ymin):
+                            self.grid.xmax / self.grid.cell_size -
+                            self.grid.xmin / self.grid.cell_size
+                    ) and check_y >= 0 and check_y < (
+                            self.grid.ymax / self.grid.cell_size -
+                            self.grid.ymin / self.grid.cell_size):
                         neighbours.append([
                             check_x, check_y
                         ])  # add positions to neighbour lit and compare later
@@ -190,7 +214,8 @@ class A_star():
     def plan(self):
         self.open_list.append(self.current_node)
 
-        # REPLACE WITH HEAPQ FOR FASTER LOOP
+        heapq.heapify(self.open_list)
+
         it = 0
         while len(self.open_list) > 0:
             # print(it)
@@ -201,7 +226,8 @@ class A_star():
             it += 1
 
             self.current_node = self.open_list[0]
-
+            """
+            # REPLACED WITH HEAPQ FOR FASTER LOOP
             for i in range(1, len(
                     self.open_list)):  # start at 1 since 0 is current
                 # print(" node i cost: {}".format(self.open_list[i].hcost))
@@ -217,10 +243,16 @@ class A_star():
             index_to_pop = self.open_list.index(self.current_node)
             self.open_list.pop(index_to_pop)
             self.closed_list.append(self.current_node)
+            """
+            # Simultaneously set current node and remove it from openlist
+            self.current_node = heapq.heappop(self.open_list)
+            # pprint(vars(self.current_node))
+            # Heapq unnecessary for closed list
+            self.closed_list.append(self.current_node)
 
             if self.current_node.position == self.goal_node.position:
                 return self.trace_path(self.start_node, self.current_node)
-                # print("goal found after {} iterations!".format(it))
+                print("goal found after {} iterations!".format(it))
                 break
 
             for neighbour in self.get_neighbours(self.current_node):
@@ -261,7 +293,12 @@ class A_star():
                         neighbour_temp, self.current_node)
                     neighbour_node = Node(neighbour, self.current_node, g_cost,
                                           h_cost, False)
-                    self.open_list.append(neighbour_node)
+
+                    # Push to the right index by comparing .heap
+                    # attribute defined in node class under __lt__
+                    # (less than)
+                    heapq.heappush(self.open_list, neighbour_node)
+                    # self.open_list.append(neighbour_node)
                     # print("The chosen node is:")
                     # pprint(vars(neighbour_node))
 
@@ -331,6 +368,7 @@ def plot(landmark_list, a_grid, path):
                 path_y,
                 color='darkviolet',
                 marker='o',
+                s=50 * a_grid.cell_size,
                 label='Path Points')
 
     # Plot Start
@@ -344,8 +382,8 @@ def plot(landmark_list, a_grid, path):
     # Plot Goal
     plt.plot(path_x[-1],
              path_y[-1],
-             color='darkviolet',
-             marker='o',
+             color='g',
+             marker='d',
              markersize=10,
              label='Goal')
 
@@ -400,7 +438,13 @@ def a5(landmark_list, start, goal):
 
 
 def a7(landmark_list, start, goal):
-    return True
+    grid_size = 0.1
+    a_grid = Grid(grid_size, landmark_list)
+    astar = A_star(a_grid, start, goal)
+
+    path = astar.plan()
+
+    plot(landmark_list, a_grid, path)
 
 
 # Main
@@ -431,12 +475,20 @@ def main():
         elif input == 'C':
             start = [-0.5, 5.5]
             goal = [1.5, -3.5]
-        print(start)
-        print(goal)
 
         a5(landmark_list, start, goal)
     elif exercise == '7':
         # Exerise 7: A* with small grid
+        input = raw_input('Select a set of coordinates [A, B, C]').upper()
+        if input == 'A':
+            start = [2.45, -3.55]
+            goal = [0.95, -1.55]
+        elif input == 'B':
+            start = [4.95, -0.05]
+            goal = [2.45, 0.25]
+        elif input == 'C':
+            start = [-0.55, 1.45]
+            goal = [1.95, 3.95]
         a7(landmark_list, start, goal)
 
 
