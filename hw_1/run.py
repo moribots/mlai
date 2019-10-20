@@ -346,7 +346,7 @@ def plot(landmark_list, a_grid, path, neighbours, exp_nodes):
     # plt.imshow adds colour to higher values
     # used to show occupied cells
     plt.imshow(a_grid.centres.T,
-               cmap=plt.cm.binary,
+               cmap='Paired',
                origin='lower',
                extent=[a_grid.xmin, a_grid.xmax, a_grid.ymin, a_grid.ymax])
     # extent is left, right, bottom, top
@@ -356,7 +356,7 @@ def plot(landmark_list, a_grid, path, neighbours, exp_nodes):
     n_y = [y[1] for y in neighbours]
     plt.scatter(n_x,
                 n_y,
-                color='gold',
+                color='k',
                 marker='*',
                 s=20 * a_grid.cell_size,
                 label='Exp Nodes')
@@ -366,7 +366,7 @@ def plot(landmark_list, a_grid, path, neighbours, exp_nodes):
     exp_y = [y[1] for y in exp_nodes]
     plt.scatter(exp_x,
                 exp_y,
-                color='gold',
+                color='k',
                 marker='*',
                 s=20 * a_grid.cell_size,
                 label='Exp Nodes')
