@@ -89,14 +89,14 @@ class Node():
         self.hcost = hcost
 
         self.f = self.gcost + self.hcost
-        self.heap = self.f + self.hcost  # Used for finding heapmin
+        # heap evaluates first item of tuple first, then second if
+        # first item is equal for both nodes
+        self.heap = (self.f, self.hcost)  # Used for finding heapmin
         self.obstacle = obstacle  # T or F
 
     # Used in heap queue (priority queue for min)
     def __lt__(self, neighbour):  # overload operator for heap queue
         # eval heapq based on this value
-        # of f + h, which encompasses cases where
-        # f = f and we must choose using h value
         return self.heap < neighbour.heap
 
 
@@ -150,13 +150,13 @@ class A_star():
     def get_dist(self, node1, node2):
         x_dist = abs(node1.position[0] - node2.position[0])
         y_dist = abs(node1.position[1] - node2.position[1])
-
+        """
         if x_dist > y_dist:
             cost = 1.4 * y_dist + 1.0 * (x_dist - y_dist)
         else:
             cost = 1.4 * x_dist + 1.0 * (y_dist - x_dist)
-
-        # cost = np.sqrt(x_dist**2 + y_dist**2)
+        """
+        cost = np.sqrt(x_dist**2 + y_dist**2)
         return cost
 
     def get_neighbours(self, node):
