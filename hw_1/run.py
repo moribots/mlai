@@ -18,6 +18,7 @@ from pprint import pprint
 import heapq
 import matplotlib.pyplot as plt
 from matplotlib.ticker import (AutoMinorLocator, MultipleLocator)
+import matplotlib.ticker as plticker
 import pandas as pd
 
 
@@ -251,23 +252,19 @@ class A_star():
             for neighbour in self.get_neighbours(self.current_node):
                 # print("Neighbour pos: {}".format(neighbour))
                 skip = False
-                closed = False
                 opened = False
-                obstacle_node = False
 
                 # see if matches coords in closed list
                 for node in self.closed_list:
                     if neighbour[0] == node.position[0] and neighbour[
                             1] == node.position[1]:
                         # node exists in closed lit
-                        closed = True
                         skip = True
 
                 # see if index matches obstacle list
                 for obstacle in self.obstacle_list:
                     if neighbour[0] == obstacle[0] and neighbour[
                             1] == obstacle[1]:
-                        obstacle_node = True
                         skip = True
 
                 # see if matches coords in open list
@@ -278,8 +275,11 @@ class A_star():
                         neighbour_node = node
                         opened = True
 
+                if skip is True:
+                    continue
+
                 # if in none of these lists, create new node
-                if closed is False and opened is False and obstacle_node is False:
+                elif opened is False:
                     neighbour_temp = Node(neighbour, None, 0, 0, False)
                     h_cost = self.get_dist(neighbour_temp, self.goal_node)
                     g_cost = self.current_node.gcost + self.get_dist(
@@ -294,15 +294,12 @@ class A_star():
                     # self.open_list.append(neighbour_node)
                     # print("The chosen node is:")
                     # pprint(vars(neighbour_node))
-
-                elif skip is True:
-                    continue
-                elif open is True:
+                elif opened is True:
                     # h_cost = self.get_dist(neighbour_node, self.goal_node)
                     g_cost = self.current_node.gcost + self.get_dist(
                         neighbour_node, self.current_node)
 
-                    if g_cost < neighbour_node.gcost or self.open_list:
+                    if g_cost < neighbour_node.gcost:
                         neighbour_node.gcost = g_cost
                         neighbour_node.parent = self.current_node
                     # print("The chosen node is:")
@@ -427,26 +424,6 @@ class A_star_online():
             # print("The current node is:")
             # pprint(vars(self.current_node))
             it += 1
-
-            # self.current_node = self.open_list[0]
-            """
-            # REPLACED WITH HEAPQ FOR FASTER LOOP
-            for i in range(1, len(
-                    self.open_list)):  # start at 1 since 0 is current
-                # print(" node i cost: {}".format(self.open_list[i].hcost))
-                if self.open_list[i].f < self.current_node.f:
-                    self.current_node = self.open_list[i]
-                elif self.open_list[
-                        i].f == self.current_node.f and self.open_list[
-                            i].hcost < self.current_node.hcost:
-                    self.current_node = self.open_list[i]
-            # print("The new current node is:")
-            # pprint(vars(self.current_node))
-
-            index_to_pop = self.open_list.index(self.current_node)
-            self.open_list.pop(index_to_pop)
-            self.closed_list.append(self.current_node)
-            """
             # Simultaneously set current node and remove it from openlist
             self.current_node = heapq.heappop(self.open_list)
             # pprint(vars(self.current_node))
@@ -464,35 +441,24 @@ class A_star_online():
             for neighbour in self.get_neighbours(self.current_node):
                 # print("Neighbour pos: {}".format(neighbour))
                 skip = False
-                closed = False
-                opened = False
-                obstacle_node = False
 
                 # see if matches coords in closed list
                 for node in self.closed_list:
                     if neighbour[0] == node.position[0] and neighbour[
                             1] == node.position[1]:
                         # node exists in closed lit
-                        closed = True
                         skip = True
 
                 # see if index matches obstacle list
                 for obstacle in self.obstacle_list:
                     if neighbour[0] == obstacle[0] and neighbour[
                             1] == obstacle[1]:
-                        obstacle_node = True
                         skip = True
 
-                # see if matches coords in open list
-                for node in self.open_list:
-                    if neighbour[0] == node.position[0] and neighbour[
-                            1] == node.position[1]:
-                        # node exists in open list
-                        neighbour_node = node
-                        opened = True
-
+                if skip is True:
+                    continue
                 # if in none of these lists, create new node
-                if closed is False and opened is False and obstacle_node is False:
+                else:
                     neighbour_temp = Node(neighbour, None, 0, 0, False)
                     h_cost = self.get_dist(neighbour_temp, self.goal_node)
                     g_cost = self.current_node.gcost + self.get_dist(
@@ -505,24 +471,20 @@ class A_star_online():
                     # (less than)
                     heapq.heappush(self.neighbour_list, neighbour_node)
                     # self.open_list.append(neighbour_node)
-                    # print("The chosen node is:")
-                    # pprint(vars(neighbour_node))
+                    #if it == 7:
+                        #print("the current node position is: {}".format(self.current_node.position))
+                        #print("The chosen node is:")
+                        #pprint(vars(neighbour_node))
+                        #print("\n")
 
-                elif skip is True:
-                    continue
-                elif open is True:
-                    # h_cost = self.get_dist(neighbour_node, self.goal_node)
-                    g_cost = self.current_node.gcost + self.get_dist(
-                        neighbour_node, self.current_node)
-
-                    if g_cost < neighbour_node.gcost or self.open_list:
-                        neighbour_node.gcost = g_cost
-                        neighbour_node.parent = self.current_node
-                    # print("The chosen node is:")
-                    # pprint(vars(neighbour_node))
             if len(self.neighbour_list) > 0:
                 neighbour_node = heapq.heappop(self.neighbour_list)
+                # print("Open list size before push: {}".format(len(self.open_list)))
                 heapq.heappush(self.open_list, neighbour_node)
+                #print("The chosen node is:")
+                #pprint(vars(neighbour_node))
+                #print("\n")
+                # print("Open list size after push: {}".format(len(self.open_list)))
 
 
 # Read .dat Files using Pandas
@@ -621,6 +583,13 @@ def plot(landmark_list, a_grid, path, neighbours, exp_nodes):
     ax.xaxis.set_minor_locator(AutoMinorLocator(0.1))
     ax.yaxis.set_minor_locator(AutoMinorLocator(0.1))
 
+    # loc = plticker.MultipleLocator(base=a_grid.cell_size)
+    # ax.xaxis.set_major_locator(loc)
+    # ax.yaxis.set_major_locator(loc)
+    # ax.grid(which='major', axis='both')
+    # ax.set_xticks(np.arange(-2, 5, cell_size))
+    # ax.set_yticks(np.arange(-6, 6, cell_size))
+
     # Turn grid on for both major and minor ticks and style minor slightly
     # differently.
     ax.grid(which='major', color='darkviolet', linestyle='-')
@@ -689,10 +658,14 @@ def a5(landmark_list, start, goal):
     plot(landmark_list, a_grid, path, open_l, closed_l)
 
 
-def a7(landmark_list, start, goal):
+def a7(landmark_list, start, goal, algo):
     grid_size = 0.1
     a_grid = Grid(grid_size, landmark_list)
-    astar = A_star_online(a_grid, start, goal)
+
+    if algo is True:
+        astar = A_star_online(a_grid, start, goal)
+    elif algo is False:
+        astar = A_star(a_grid, start, goal)
 
     path = astar.plan()
 
@@ -754,6 +727,7 @@ def main():
     elif exercise == '7':
         # Exerise 7: A* with small grid
         input = raw_input('Select a set of coordinates [A, B, C]').upper()
+        algo = raw_input('Use Online or Naive Algo?').upper()
         if input == 'A':
             start = [2.45, -3.55]
             goal = [0.95, -1.55]
@@ -763,7 +737,11 @@ def main():
         elif input == 'C':
             start = [-0.55, 1.45]
             goal = [1.95, 3.95]
-        a7(landmark_list, start, goal)
+        if algo == 'ONLINE':
+            algo = True
+        elif algo == 'NAIVE':
+            algo = False
+        a7(landmark_list, start, goal, algo)
 
 
 if __name__ == "__main__":
