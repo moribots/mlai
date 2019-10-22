@@ -18,7 +18,7 @@ The libraries used for this code are:
 **PLEASE MAKE SURE TO RUN THE FILE IN THE ```hw_1``` DIRECTORY ON YOUR TERMINAL**
 ****
 ## Coded Exercises
-When you run ``` ./run.py ``` (after writing the command: ``` chmod +x run.py ```), you will be prompted to select an exercise: 2, 3, or 6. The numbering corresponds to the labeling in the homework description. You can also run the executable using ``` run run.py ```.
+When you run ``` ./run.py ``` (after writing the command: ``` chmod +x run.py ```), you will be prompted to select an exercise: ```3```, ```5```, or ```7```. The numbering corresponds to the labeling in the homework description. You can also run the executable using ``` run run.py ```.
 
 ### Exercise 3:
 #### Operation:
