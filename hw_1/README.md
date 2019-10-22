@@ -12,7 +12,7 @@ The code for this submission is written in Python 2.7 using PEP8 Styling.
 The libraries used for this code are:
 * ```Numpy ```
 * ```Matplotlib ```
-* ```Pandas ``` (mentioned in my email)
+* ```Pandas ```
 * ```heapq``` for optimisation
 
 **PLEASE MAKE SURE TO RUN THE FILE IN THE ```hw_1``` DIRECTORY ON YOUR TERMINAL**
