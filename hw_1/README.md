@@ -85,3 +85,5 @@ Online:
 ![7CO](media/7COnline.png)
 Naive:
 ![7CN](media/7CNaive.png)
+
+Note that in these screenshots, the path sometimes appear to intersect with an obstacle. If you zoom in after running the code, you will see that this is not actually the case. 
