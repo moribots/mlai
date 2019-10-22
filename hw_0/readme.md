@@ -63,7 +63,7 @@ PF with Odometry Data:
 
 PF limited Odometry Plot:
 
-![PF3 Plot](theta_0.5.png)
+![PF3 Plot](theta_1.5.png)
 
 PF with no measurement Plot:
 
