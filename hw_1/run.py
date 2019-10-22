@@ -102,24 +102,33 @@ class Node():
 
 class A_star():
     def __init__(self, grid, start, goal):
+        # import grid instance of Grid class
         self.grid = grid
+        # set obstacle indeces in grid coords
         self.obstacle_list = self.obstacle_list()
+        # Import start coord
         self.start = start
+        # Import goal coord
         self.goal = goal
+        # Set start and goal coord to grid indeces
         self.start_grid = self.world2grid(start)
         self.goal_grid = self.world2grid(goal)
-
+        # Init open and closed lists, and path
         self.open_list = []
         self.closed_list = []
         self.path = []  # this is in world coord
         self.start_node = Node(self.start_grid, None, 0, 0, False)
         self.goal_node = Node(self.goal_grid, None, 0, 0, False)
+        # Init current node with 0 g cost and h cost determined by
+        # get_dist method
         self.current_node = Node(
             self.start_grid, None, 0,
             self.get_dist(self.start_node, self.goal_node), False
         )  # init at start  -- NEED TO REPLACE 2ND 0 WITH CALC HEUR FCN
 
     def obstacle_list(self):
+        """ Returns indeces of obstacles in grid coord
+        """
         indxs = np.where(self.grid.centres == 1000)
         coords = list(zip(indxs[0], indxs[1]))
 
@@ -148,6 +157,8 @@ class A_star():
         return [x, y]
 
     def get_dist(self, node1, node2):
+        """Computes heuristic using manhattan distance
+        """
         x_dist = abs(node1.position[0] - node2.position[0])
         y_dist = abs(node1.position[1] - node2.position[1])
         """
@@ -160,8 +171,10 @@ class A_star():
         return cost
 
     def get_neighbours(self, node):
+        """ Evaluates 8 neighbours surrounding each
+            node (Cell)
+        """
         neighbours = []
-        # print("trying to get neighbours")
 
         # Evaluate about 3x3 block
         for x in range(-1, 2):  # x from -1 to 1
@@ -188,6 +201,12 @@ class A_star():
         return neighbours
 
     def trace_path(self, startnode, currnode):
+        """ Traces path from goal to start via
+            parent nodes of each node in closed list
+
+            Then converts path coordinates (grid indeces)
+            into world coordinates after reversing path
+        """
         self.goal_node = self.current_node
 
         while self.current_node.position != self.start_node.position:
@@ -206,39 +225,40 @@ class A_star():
         return path
 
     def plan(self):
+        """ Main Planning Loop
+            for A* (naive)
+
+            Steps:
+
+            1. Append start node to open list
+            2. LOOP:
+                a- set current node to that with lowest f cost
+                in open list. If some nodes have the same f cost,
+                choose current node using h cost
+
+                b- get the 8 neighbours of each node (or less depending
+                on proximity to grid limits)
+
+                c- for each node:
+                    i - if it is inside the closed list,
+                    or if it is an obstacle, ignore it
+                    ii - if it is on the open list, check
+                    whether it is a better path than the current node,
+                    if so, update its g cost and make its parent node the
+                    current node
+                    iii - if none of these conditions are met,
+                    add the node to the open list and set its parent
+                    to the current node after calculating its g and h cost
+            3. If goal is found, return path, else, keep looping
+            until goal is found or open list is 0 (path was never found)
+        """
         self.open_list.append(self.current_node)
 
         heapq.heapify(self.open_list)
 
         it = 0
         while len(self.open_list) > 0:
-            # print(it)
-            # print("\n")
-            # print("Open List Size: {}".format(len(self.open_list)))
-            # print("The current node is:")
-            # pprint(vars(self.current_node))
             it += 1
-
-            # self.current_node = self.open_list[0]
-            """
-            # REPLACED WITH HEAPQ FOR FASTER LOOP
-            for i in range(1, len(
-                    self.open_list)):  # start at 1 since 0 is current
-                # print(" node i cost: {}".format(self.open_list[i].hcost))
-                if self.open_list[i].f < self.current_node.f:
-                    self.current_node = self.open_list[i]
-                elif self.open_list[
-                        i].f == self.current_node.f and self.open_list[
-                            i].hcost < self.current_node.hcost:
-                    self.current_node = self.open_list[i]
-            # print("The new current node is:")
-            # pprint(vars(self.current_node))
-
-            index_to_pop = self.open_list.index(self.current_node)
-            self.open_list.pop(index_to_pop)
-            self.closed_list.append(self.current_node)
-            """
-            # Simultaneously set current node and remove it from openlist
             self.current_node = heapq.heappop(self.open_list)
             # pprint(vars(self.current_node))
             # Heapq unnecessary for closed list
@@ -291,11 +311,9 @@ class A_star():
                     # attribute defined in node class under __lt__
                     # (less than)
                     heapq.heappush(self.open_list, neighbour_node)
-                    # self.open_list.append(neighbour_node)
                     # print("The chosen node is:")
                     # pprint(vars(neighbour_node))
                 elif opened is True:
-                    # h_cost = self.get_dist(neighbour_node, self.goal_node)
                     g_cost = self.current_node.gcost + self.get_dist(
                         neighbour_node, self.current_node)
 
@@ -308,25 +326,33 @@ class A_star():
 
 class A_star_online():
     def __init__(self, grid, start, goal):
+        # import grid instance of Grid class
         self.grid = grid
+        # set obstacle indeces in grid coords
         self.obstacle_list = self.obstacle_list()
+        # Import start coord
         self.start = start
+        # Import goal coord
         self.goal = goal
+        # Set start and goal coord to grid indeces
         self.start_grid = self.world2grid(start)
         self.goal_grid = self.world2grid(goal)
-
+        # Init open and closed lists, and path
         self.open_list = []
         self.closed_list = []
         self.path = []  # this is in world coord
         self.start_node = Node(self.start_grid, None, 0, 0, False)
         self.goal_node = Node(self.goal_grid, None, 0, 0, False)
+        # Init current node with 0 g cost and h cost determined by
+        # get_dist method
         self.current_node = Node(
             self.start_grid, None, 0,
             self.get_dist(self.start_node, self.goal_node), False
         )  # init at start  -- NEED TO REPLACE 2ND 0 WITH CALC HEUR FCN
-        self.neighbour_list = []  # used in online v to select best n
 
     def obstacle_list(self):
+        """ Returns indeces of obstacles in grid coord
+        """
         indxs = np.where(self.grid.centres == 1000)
         coords = list(zip(indxs[0], indxs[1]))
 
@@ -355,19 +381,21 @@ class A_star_online():
         return [x, y]
 
     def get_dist(self, node1, node2):
+        """Computes heuristic using manhattan distance
+        """
         x_dist = abs(node1.position[0] - node2.position[0])
         y_dist = abs(node1.position[1] - node2.position[1])
         if x_dist > y_dist:
             cost = 1.4 * y_dist + 1.0 * (x_dist - y_dist)
         else:
             cost = 1.4 * x_dist + 1.0 * (y_dist - x_dist)
-        #cost = np.sqrt(x_dist**2 + y_dist**2)
-        #cost = (x_dist**2 + y_dist**2)
         return cost
 
     def get_neighbours(self, node):
+        """ Evaluates 8 neighbours surrounding each
+            node (Cell)
+        """
         neighbours = []
-        # print("trying to get neighbours")
 
         # Evaluate about 3x3 block
         for x in range(-1, 2):  # x from -1 to 1
@@ -394,6 +422,12 @@ class A_star_online():
         return neighbours
 
     def trace_path(self, startnode, currnode):
+        """ Traces path from goal to start via
+            parent nodes of each node in closed list
+
+            Then converts path coordinates (grid indeces)
+            into world coordinates after reversing path
+        """
         self.goal_node = self.current_node
 
         while self.current_node.position != self.start_node.position:
@@ -412,17 +446,37 @@ class A_star_online():
         return path
 
     def plan(self):
+        """ Main Planning Loop
+            for A* (online)
+
+            Steps:
+
+            1. Append start node to open list
+            2. LOOP:
+                a- set current node to that with lowest f cost
+                in open list. If some nodes have the same f cost,
+                choose current node using h cost
+
+                b- get the 8 neighbours of each node (or less depending
+                on proximity to grid limits)
+
+                c- for each node:
+                    i - if it is inside the closed list,
+                    or if it is an obstacle, ignore it
+                    ii - if none of these conditions are met,
+                    add the node to the open list and set its parent
+                    to the current node after calculating its g and h cost
+                d - only append the node with the lowest f cost to the open
+                list. If some nodes have the same f cost, sort using h cost.
+            3. If goal is found, return path, else, keep looping
+            until goal is found or open list is 0 (path was never found)
+        """
         self.open_list.append(self.current_node)
 
         heapq.heapify(self.open_list)
 
         it = 0
         while len(self.open_list) > 0:
-            # print(it)
-            # print("\n")
-            # print("Open List Size: {}".format(len(self.open_list)))
-            # print("The current node is:")
-            # pprint(vars(self.current_node))
             it += 1
             # Simultaneously set current node and remove it from openlist
             self.current_node = heapq.heappop(self.open_list)
@@ -470,21 +524,10 @@ class A_star_online():
                     # attribute defined in node class under __lt__
                     # (less than)
                     heapq.heappush(self.neighbour_list, neighbour_node)
-                    # self.open_list.append(neighbour_node)
-                    #if it == 7:
-                        #print("the current node position is: {}".format(self.current_node.position))
-                        #print("The chosen node is:")
-                        #pprint(vars(neighbour_node))
-                        #print("\n")
 
             if len(self.neighbour_list) > 0:
                 neighbour_node = heapq.heappop(self.neighbour_list)
-                # print("Open list size before push: {}".format(len(self.open_list)))
                 heapq.heappush(self.open_list, neighbour_node)
-                #print("The chosen node is:")
-                #pprint(vars(neighbour_node))
-                #print("\n")
-                # print("Open list size after push: {}".format(len(self.open_list)))
 
 
 # Read .dat Files using Pandas
@@ -508,7 +551,7 @@ def read_dat(start_index, file_path, usecols):
 
 
 def plot(landmark_list, a_grid, path, neighbours, exp_nodes):
-    """DOCSTRING
+    """ Plot path and (naive) expanded nodes
     """
 
     # Initialise Plot
@@ -570,6 +613,17 @@ def plot(landmark_list, a_grid, path, neighbours, exp_nodes):
              marker='d',
              markersize=10,
              label='Goal')
+
+    # Annotate Start
+    ax.annotate('Start',
+                xy=(path_x[0], path_y[0]),
+                xytext=(path_x[0] + 1, path_y[0] - 1),
+                arrowprops=dict(facecolor='green', shrink=0.05))
+    # Annotate Goal
+    ax.annotate('Goal',
+                xy=(path_x[-1], path_y[-1]),
+                xytext=(path_x[-1] + 1, path_y[-1] + 1),
+                arrowprops=dict(facecolor='green', shrink=0.05))
 
     # Set axis ranges
     ax.set_xlim(a_grid.xmin, a_grid.xmax)
@@ -686,6 +740,10 @@ def a7(landmark_list, start, goal, algo):
 
 # Main
 def main():
+    """ The main function, shows different
+        plots for different exercises based on
+        user input
+    """
     # Load Data from ds1 set using Pandas
     landmark_groundtruth = read_dat(
         3, "ds1/ds1_Landmark_Groundtruth.dat",
