@@ -27,13 +27,13 @@ Enter ```3``` at the command prompt to plot for this exercise.
 The Naive A* search is implemented here with a 1x1 grid. The path displayed here is often more optimal than that of the online search, as it (less realistically) allows the robot to back up and pick a better path if one is found. Plots can be printed for Start and Goal sets ```A```, ```B``` and ```C``` by inputting these values (upper or lower case) at the command prompt. Open and Closed list nodes are plotted to provide a visual of required computational power for each search. 
 
 A Plot:
-![3A](media/3A)
+![3A](media/3A.png)
 
 B Plot:
-![3B](media/3b)
+![3B](media/3B.png)
 
 C Plot:
-![3C](media/3C)
+![3C](media/3C.png)
 
 ### Exercise 5:
 #### Operation:
@@ -42,13 +42,13 @@ Enter ```5``` at the command prompt to plot for this exercise.
 The Online A* search is implemented here with a 1x1 grid. The path displayed here is less optimal than that of the naive search, the realistic implementation prevents the robot from back-tracking by only adding the lowest-cost neighbour to the open list at each iteration. Plots can be printed for Start and Goal sets ```A```, ```B``` and ```C``` by inputting these values (upper or lower case) at the command prompt. Open and Closed list nodes are not plotted here as they simply consist of the followed path. 
 
 A Plot:
-![5A](media/5A)
+![5A](media/5A.png)
 
 B Plot:
-![5B](media/5b)
+![5B](media/5B.png)
 
 C Plot:
-![5C](media/5C)
+![5C](media/5C.png)
 
 
 ### Exercise 7: 
@@ -61,18 +61,18 @@ The same environment is navigated using the Naive A* for comparison purposes. At
 
 A Plot:
 Online:
-![7AO](media/7AONLINE)
+![7AO](media/7AOnline.png)
 Naive:
-![7AN](media/7ANAIVE)
+![7AN](media/7ANaive.png)
 
 B Plot:
 Online:
-![7BO](media/7BONLINE)
+![7BO](media/7BOnline.png)
 Naive:
-![7BN](media/7BNAIVE)
+![7BN](media/7BNaive.png)
 
 C Plot:
 Online:
-![7CO](media/7CONLINE)
+![7CO](media/7COnline.png)
 Naive:
-![7CN](media/7CNAIVE)
+![7CN](media/7CNaive.png)
