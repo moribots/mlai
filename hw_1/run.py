@@ -545,6 +545,7 @@ class Robot():
         self.u_y_prev = 0  # initial
         self.u_v_prev = 0  # initial
         self.u_w_prev = 0  # initial
+        self.i = 0
 
     def rk4_intgr(self, x0, u):
         """ Returns position updates for
@@ -578,8 +579,8 @@ class Robot():
     def control(self, goal):
         dist_i = np.sqrt((self.x - goal[0])**2 + (self.y - goal[1])**2)
         dist = dist_i
-        Kpv = 0.01
-        Kpw = 0.3
+        Kpv = 0.001
+        Kpw = 0.03
         i = 0
 
         while dist > self.thresh:
@@ -651,11 +652,16 @@ class Robot():
             self.th = new_state[2]
             self.path.append(new_state)
 
+            if self.i == 12:
+                print(u)
+
     def move(self):
         for i in range(len(self.nodes) - 1):
             goal = self.nodes[i + 1]
             self.control(goal)
             print([self.x, self.y, self.th])
+            self.i = i
+            print(self.i)
             # print(self.nodes[i][0])
         return self.path
 
@@ -980,12 +986,12 @@ def plot_b(landmark_list, a_grid, path, bot_path):
 
 
 def a9(landmark_list, start, goal):
-    grid_size = 1
+    grid_size = 0.1
     a_grid = Grid(grid_size, landmark_list)
 
-    astar = A_star(a_grid, start, goal)
+    astar = A_star_online(a_grid, start, goal)
     max_u = [0.288, 5.579]
-    thresh = 0.01
+    thresh = 0.005
 
     path = astar.plan()
     robot = Robot(max_u, thresh, path)
@@ -1010,7 +1016,7 @@ def main():
             [landmark_groundtruth[l][1], landmark_groundtruth[l][2]])
 
     # Select Exercise
-    exercise = raw_input('Select an exercise [3,5,7]')
+    exercise = raw_input('Select an exercise [3,5,7,9,10,11]')
     if exercise == '3':
         # Exercise 3: Naive Search
         input = raw_input('Select a set of coordinates [A, B, C]').upper()
@@ -1059,14 +1065,14 @@ def main():
     elif exercise == '9':
         input = raw_input('Select a set of coordinates [A, B, C]').upper()
         if input == 'A':
-            start = [0.5, -1.5]
-            goal = [0.5, 1.5]
+            start = [2.45, -3.55]
+            goal = [0.95, -1.55]
         elif input == 'B':
-            start = [4.5, 3.5]
-            goal = [4.5, -1.5]
+            start = [4.95, -0.05]
+            goal = [2.45, 0.25]
         elif input == 'C':
-            start = [-0.5, 5.5]
-            goal = [1.5, -3.5]
+            start = [-0.55, 1.45]
+            goal = [1.95, 3.95]
         a9(landmark_list, start, goal)
 
 
