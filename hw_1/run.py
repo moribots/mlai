@@ -541,47 +541,123 @@ class Robot():
         self.dt = 0.1
         self.nodes = nodes
         self.path = []
+        self.u_x_prev = 0  # initial
+        self.u_y_prev = 0  # initial
+        self.u_v_prev = 0  # initial
+        self.u_w_prev = 0  # initial
+
+    def rk4_intgr(self, x0, u):
+        """ Returns position updates for
+            given velocity commands after one timestep
+            using a Runge-Kutta 4 integrator
+        """
+        # update calculated here
+        k1 = self.dt * self.dynamics(x0, u)
+        # print(k1)
+        k2 = self.dt * self.dynamics(x0 + k1 / 2, u)
+        k3 = self.dt * self.dynamics(x0 + k2 / 2, u)
+        k4 = self.dt * self.dynamics(x0 + k3, u)
+        # initial plus update
+        xnew = x0 + (1 / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
+        return xnew
+
+    def dynamics(self, x0, u):
+        x_dot = u[0] * np.cos(x0[2])
+        # print(x_dot)
+        y_dot = u[0] * np.sin(x0[2])
+        w = u[1]
+        return np.array([x_dot, y_dot, w])
+
+    def euler_intgr(self, x0, u):
+        xn = x0[0] + u[0] * np.cos(x0[2]) * self.dt
+        yn = x0[1] + u[0] * np.sin(x0[2]) * self.dt
+        thn = x0[2] + u[1] * self.dt
+        x_new = [xn, yn, thn]
+        return x_new
 
     def control(self, goal):
-        # Initialize using curr and goal node (next step, not final)
-        # Calculate Kpw to set max acceleration
-        o = goal[1] - self.y
-        a = goal[0] - self.x
-        bearing = np.arctan2(o, a) - self.th
-        Kpw = self.max[1] * self.dt / bearing
+        dist_i = np.sqrt((self.x - goal[0])**2 + (self.y - goal[1])**2)
+        dist = dist_i
+        Kpv = 0.01
+        Kpw = 0.3
+        i = 0
 
-        # Calculate Kpv to set max acceleration
-        dist = np.sqrt((self.x - goal[0])**2 + (self.y - goal[1])**2)
-        Kpv = self.max[0] * self.dt / dist  # clc Kpv once else nevr decelerate
-        Kpv = Kpv / 10
-
-        print([Kpv, Kpw]) # SOMETHING WRONG WITH MY KPV KPW CALC, REPORTING NAN!
-
-        # Loop control until point reached within thresh
         while dist > self.thresh:
+            # print(dist - self.thresh)
+            # print(i)
+            i += 1
             dist = np.sqrt((self.x - goal[0])**2 + (self.y - goal[1])**2)
-            v = Kpv * dist
-            self.x = self.x + v * np.cos(self.th) * self.dt
-            self.y = self.y + v * np.sin(self.th) * self.dt
             o = goal[1] - self.y
             a = goal[0] - self.x
             bearing = np.arctan2(o, a) - self.th
-            w = Kpw * bearing
-            self.th = self.th + w * self.dt
-            # print([self.x, self.y, self.th])
+            # print(bearing)
+            # Set Kpv and Kpw for max v and w
+            u = [Kpv * dist, Kpw * bearing]
+            u_x = u[0] * np.cos(self.th)
+            u_y = u[0] * np.sin(self.th)
+            u_w = u[1]
+            a_x = abs(u_x - self.u_x_prev) / self.dt
+            a_y = abs(u_y - self.u_y_prev) / self.dt
+            a_lin = np.sqrt(a_x**2 + a_y**2)
+            a_th = abs(u_w - self.u_w_prev) / self.dt
 
-            # At every time step, append new path point
-            self.path.append([self.x, self.y, self.th])
+            if a_lin > self.max[0]:
+                u[0] = self.u_v_prev + self.max[0] * self.dt
+                # update linear velocity for next loop
+                self.u_v_prev = u[0]
+            else:
+                self.u_v_prev = u[0]
+
+            if a_th > self.max[1]:
+                u[1] = self.u_w_prev + self.max[1] * self.dt
+                # update angular velocity for next loop
+                self.u_w_prev = u[1]
+            else:
+                self.u_w_prev = u[1]
+
+            # # Solve for Kpv
+            # while a_lin > self.max[0]:
+            #     Kpv -= 0.005
+            #     u_temp_lin = Kpv * dist
+            #     u_x = u_temp_lin * np.cos(self.th)
+            #     u_y = u_temp_lin * np.sin(self.th)
+            #     a_x = abs(u_x - self.u_x) / self.dt
+            #     a_y = abs(u_y - self.u_y) / self.dt
+            #     a_lin = np.sqrt(a_x**2 + a_y**2)
+            # # update v_t-1
+            # self.u_x = u_x
+            # self.u_y = u_y
+
+            # # Solve for Kpw
+            # while a_th > self.max[1]:
+            #     Kpw -= 0.001
+            #     u_th = Kpw * bearing
+            #     a_th = abs(u_th - self.u_th) / self.dt
+            # # update w_t-1
+            # self.u_th = u_th
+
+            # Issue Control using RK4 intgr
+            x0 = np.array([self.x, self.y, self.th])
+            new_state = self.rk4_intgr(x0, u)
+            # new_state = self.euler_intgr(x0, u)
+
+            # update directional velocities for next loop
+            self.u_x_prev = abs(self.x - new_state[0]) / self.dt
+            self.u_y_prev = abs(self.y - new_state[1]) / self.dt
+            # self.u_w_prev = abs(self.th - new_state[2]) / self.dt
+
+            self.x = new_state[0]
+            self.y = new_state[1]
+            self.th = new_state[2]
+            self.path.append(new_state)
 
     def move(self):
         for i in range(len(self.nodes) - 1):
             goal = self.nodes[i + 1]
             self.control(goal)
-            # print([self.x, self.y, self.th])
+            print([self.x, self.y, self.th])
             # print(self.nodes[i][0])
         return self.path
-
-
 
 
 # Read .dat Files using Pandas
@@ -904,12 +980,12 @@ def plot_b(landmark_list, a_grid, path, bot_path):
 
 
 def a9(landmark_list, start, goal):
-    grid_size = 0.1
+    grid_size = 1
     a_grid = Grid(grid_size, landmark_list)
 
-    astar = A_star_online(a_grid, start, goal)
+    astar = A_star(a_grid, start, goal)
     max_u = [0.288, 5.579]
-    thresh = 0.005
+    thresh = 0.01
 
     path = astar.plan()
     robot = Robot(max_u, thresh, path)
@@ -983,14 +1059,14 @@ def main():
     elif exercise == '9':
         input = raw_input('Select a set of coordinates [A, B, C]').upper()
         if input == 'A':
-            start = [2.45, -3.55]
-            goal = [0.95, -1.55]
+            start = [0.5, -1.5]
+            goal = [0.5, 1.5]
         elif input == 'B':
-            start = [4.95, -0.05]
-            goal = [2.45, 0.25]
+            start = [4.5, 3.5]
+            goal = [4.5, -1.5]
         elif input == 'C':
-            start = [-0.55, 1.45]
-            goal = [1.95, 3.95]
+            start = [-0.5, 5.5]
+            goal = [1.5, -3.5]
         a9(landmark_list, start, goal)
 
 
