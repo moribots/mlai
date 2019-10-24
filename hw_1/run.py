@@ -530,6 +530,60 @@ class A_star_online():
                 heapq.heappush(self.open_list, neighbour_node)
 
 
+class Robot():
+    def __init__(self, max_u, thresh, nodes):
+        self.x = nodes[0][0]
+        self.y = nodes[0][1]
+        self.th = -np.pi / 2
+        self.max = max_u
+        self.thresh = thresh
+        self.noise = 0
+        self.dt = 0.1
+        self.nodes = nodes
+        self.path = []
+
+    def control(self, goal):
+        # Initialize using curr and goal node (next step, not final)
+        # Calculate Kpw to set max acceleration
+        o = goal[1] - self.y
+        a = goal[0] - self.x
+        bearing = np.arctan2(o, a) - self.th
+        Kpw = self.max[1] * self.dt / bearing
+
+        # Calculate Kpv to set max acceleration
+        dist = np.sqrt((self.x - goal[0])**2 + (self.y - goal[1])**2)
+        Kpv = self.max[0] * self.dt / dist  # clc Kpv once else nevr decelerate
+        Kpv = Kpv / 10
+
+        print([Kpv, Kpw]) # SOMETHING WRONG WITH MY KPV KPW CALC, REPORTING NAN!
+
+        # Loop control until point reached within thresh
+        while dist > self.thresh:
+            dist = np.sqrt((self.x - goal[0])**2 + (self.y - goal[1])**2)
+            v = Kpv * dist
+            self.x = self.x + v * np.cos(self.th) * self.dt
+            self.y = self.y + v * np.sin(self.th) * self.dt
+            o = goal[1] - self.y
+            a = goal[0] - self.x
+            bearing = np.arctan2(o, a) - self.th
+            w = Kpw * bearing
+            self.th = self.th + w * self.dt
+            # print([self.x, self.y, self.th])
+
+            # At every time step, append new path point
+            self.path.append([self.x, self.y, self.th])
+
+    def move(self):
+        for i in range(len(self.nodes) - 1):
+            goal = self.nodes[i + 1]
+            self.control(goal)
+            # print([self.x, self.y, self.th])
+            # print(self.nodes[i][0])
+        return self.path
+
+
+
+
 # Read .dat Files using Pandas
 def read_dat(start_index, file_path, usecols):
     # Read Data using Pandas
@@ -550,7 +604,7 @@ def read_dat(start_index, file_path, usecols):
     return data
 
 
-def plot(landmark_list, a_grid, path, neighbours, exp_nodes):
+def plot_a(landmark_list, a_grid, path, neighbours, exp_nodes):
     """ Plot path and (naive) expanded nodes
     """
 
@@ -687,7 +741,7 @@ def a3(landmark_list, start, goal):
         position = astar.grid2world(node.position)
         closed_l.append(position)
 
-    plot(landmark_list, a_grid, path, open_l, closed_l)
+    plot_a(landmark_list, a_grid, path, open_l, closed_l)
 
 
 def a5(landmark_list, start, goal):
@@ -709,7 +763,7 @@ def a5(landmark_list, start, goal):
         position = astar.grid2world(node.position)
         closed_l.append(position)
 
-    plot(landmark_list, a_grid, path, open_l, closed_l)
+    plot_a(landmark_list, a_grid, path, open_l, closed_l)
 
 
 def a7(landmark_list, start, goal, algo):
@@ -735,7 +789,133 @@ def a7(landmark_list, start, goal, algo):
         position = astar.grid2world(node.position)
         closed_l.append(position)
 
-    plot(landmark_list, a_grid, path, open_l, closed_l)
+    plot_a(landmark_list, a_grid, path, open_l, closed_l)
+
+
+def plot_b(landmark_list, a_grid, path, bot_path):
+    """ Plot path and (naive) expanded nodes
+    """
+
+    # Initialise Plot
+    fig, ax = plt.subplots()
+
+    # plt.imshow adds colour to higher values
+    # used to show occupied cells
+    plt.imshow(a_grid.centres.T,
+               cmap='Paired',
+               origin='lower',
+               extent=[a_grid.xmin, a_grid.xmax, a_grid.ymin, a_grid.ymax])
+    # extent is left, right, bottom, top
+
+    # Plot Path
+    path_x = [x[0] for x in path]
+    path_y = [y[1] for y in path]
+    plt.plot(path_x, path_y, color='darkviolet', label='A* Path')
+
+    # Plot Path Points
+    plt.scatter(path_x,
+                path_y,
+                color='darkviolet',
+                marker='o',
+                s=50 * a_grid.cell_size,
+                label='Path Points')
+
+    # Plot Robot Path
+    bpath_x = [x[0] for x in bot_path]
+    bpath_y = [y[1] for y in bot_path]
+    plt.plot(bpath_x, bpath_y, color='r', label='A* Path')
+
+    # Plot Robot Path Points
+    plt.scatter(bpath_x,
+                bpath_y,
+                color='r',
+                marker='o',
+                s=50 * a_grid.cell_size,
+                label='Path Points')
+
+    # Plot Start
+    plt.plot(path_x[0],
+             path_y[0],
+             color='g',
+             marker='o',
+             markersize=10,
+             label='Start')
+
+    # Plot Goal
+    plt.plot(path_x[-1],
+             path_y[-1],
+             color='g',
+             marker='d',
+             markersize=10,
+             label='Goal')
+
+    # Annotate Start
+    ax.annotate('Start',
+                xy=(path_x[0], path_y[0]),
+                xytext=(path_x[0] + 1, path_y[0] - 1),
+                arrowprops=dict(facecolor='green', shrink=0.05))
+    # Annotate Goal
+    ax.annotate('Goal',
+                xy=(path_x[-1], path_y[-1]),
+                xytext=(path_x[-1] + 1, path_y[-1] + 1),
+                arrowprops=dict(facecolor='green', shrink=0.05))
+
+    # Set axis ranges
+    ax.set_xlim(a_grid.xmin, a_grid.xmax)
+    ax.set_ylim(a_grid.ymin, a_grid.ymax)
+
+    # Change major ticks
+    ax.xaxis.set_major_locator(MultipleLocator(1))
+    ax.yaxis.set_major_locator(MultipleLocator(1))
+
+    # Change minor ticks
+    ax.xaxis.set_minor_locator(AutoMinorLocator(0.1))
+    ax.yaxis.set_minor_locator(AutoMinorLocator(0.1))
+
+    # loc = plticker.MultipleLocator(base=a_grid.cell_size)
+    # ax.xaxis.set_major_locator(loc)
+    # ax.yaxis.set_major_locator(loc)
+    # ax.grid(which='major', axis='both')
+    # ax.set_xticks(np.arange(-2, 5, cell_size))
+    # ax.set_yticks(np.arange(-6, 6, cell_size))
+
+    # Turn grid on for both major and minor ticks and style minor slightly
+    # differently.
+    ax.grid(which='major', color='darkviolet', linestyle='-')
+    ax.grid(which='minor', color='darkviolet', linestyle='-')
+
+    plt.title('A* Search')
+    plt.axis([-2, 5, -6, 6])
+    plt.xlabel('x position [m]')
+    plt.ylabel('y position [m]')
+
+    # Plot landmarks
+    # Parse F Path
+    landmark_x = [x[0] for x in landmark_list]
+    landmark_y = [y[1] for y in landmark_list]
+    plt.scatter(landmark_x,
+                landmark_y,
+                alpha=1,
+                color='r',
+                label='Obstacles',
+                s=5)
+    # plt.legend()
+    plt.show()
+
+
+def a9(landmark_list, start, goal):
+    grid_size = 0.1
+    a_grid = Grid(grid_size, landmark_list)
+
+    astar = A_star_online(a_grid, start, goal)
+    max_u = [0.288, 5.579]
+    thresh = 0.005
+
+    path = astar.plan()
+    robot = Robot(max_u, thresh, path)
+    bot_path = robot.move()
+
+    plot_b(landmark_list, a_grid, path, bot_path)
 
 
 # Main
@@ -800,6 +980,18 @@ def main():
         elif algo == 'NAIVE':
             algo = False
         a7(landmark_list, start, goal, algo)
+    elif exercise == '9':
+        input = raw_input('Select a set of coordinates [A, B, C]').upper()
+        if input == 'A':
+            start = [2.45, -3.55]
+            goal = [0.95, -1.55]
+        elif input == 'B':
+            start = [4.95, -0.05]
+            goal = [2.45, 0.25]
+        elif input == 'C':
+            start = [-0.55, 1.45]
+            goal = [1.95, 3.95]
+        a9(landmark_list, start, goal)
 
 
 if __name__ == "__main__":
