@@ -579,8 +579,8 @@ class Robot():
     def control(self, goal):
         dist_i = np.sqrt((self.x - goal[0])**2 + (self.y - goal[1])**2)
         dist = dist_i
-        Kpv = 0.001
-        Kpw = 0.03
+        Kpv = 0.01
+        Kpw = 0.3
         i = 0
 
         while dist > self.thresh:
@@ -600,11 +600,14 @@ class Robot():
             a_x = abs(u_x - self.u_x_prev) / self.dt
             a_y = abs(u_y - self.u_y_prev) / self.dt
             a_lin = np.sqrt(a_x**2 + a_y**2)
-            a_th = abs(u_w - self.u_w_prev) / self.dt
+            a_th = u_w - self.u_w_prev / self.dt
 
             if a_lin > self.max[0]:
                 u[0] = self.u_v_prev + self.max[0] * self.dt
                 # update linear velocity for next loop
+                self.u_v_prev = u[0]
+            elif a_lin < -self.max[0]:
+                u[0] = self.u_v_prev + self.max[0] * self.dt
                 self.u_v_prev = u[0]
             else:
                 self.u_v_prev = u[0]
@@ -612,6 +615,9 @@ class Robot():
             if a_th > self.max[1]:
                 u[1] = self.u_w_prev + self.max[1] * self.dt
                 # update angular velocity for next loop
+                self.u_w_prev = u[1]
+            elif a_th < - self.max[1]:
+                u[1] = self.u_w_prev - self.max[1] * self.dt
                 self.u_w_prev = u[1]
             else:
                 self.u_w_prev = u[1]
