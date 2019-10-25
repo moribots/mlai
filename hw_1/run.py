@@ -396,12 +396,15 @@ class A_star_online(): # G COST IS ALWAYS 1 NO MATTER WHAT
         """
         x_dist = abs(node1.position[0] - node2.position[0])
         y_dist = abs(node1.position[1] - node2.position[1])
+        D1 = 1
+        D2 = 1  # np.sqrt(2)  # or use 1
+        cost = D1 * (x_dist + y_dist) + (D2 - 2 * D1) * min(x_dist, y_dist)
         # covering more x = priority so y cost higher
-        if x_dist > y_dist:
-            cost = 1.4 * y_dist + 1.0 * (x_dist - y_dist)
-        # covering more y = priority so x cost higher
-        else:
-            cost = 1.4 * x_dist + 1.0 * (y_dist - x_dist)
+        # if x_dist > y_dist:
+        #     cost = 1.4 * y_dist + 1.0 * (x_dist - y_dist)
+        # # covering more y = priority so x cost higher
+        # else:
+        #     cost = 1.4 * x_dist + 1.0 * (y_dist - x_dist)
         # TRY WITHOUT SQUARE ROOT!!!!!!!!!!!!!!!!!!!!!!!
         # cost = np.sqrt(x_dist**2 + y_dist**2)
         # Use different cost fcn for online or 5 B will get stuck
@@ -409,6 +412,14 @@ class A_star_online(): # G COST IS ALWAYS 1 NO MATTER WHAT
         # in a terminated path.
         # ADD TO REPORT DISCUSION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # TRY USING DIAG = STRAIGHT = 1
+        return cost
+
+    def get_dist_n(self, node1, node2):
+        """Computes heuristic using manhattan distance
+        """
+        x_dist = abs(node1.position[0] - node2.position[0])
+        y_dist = abs(node1.position[1] - node2.position[1])
+        cost = np.sqrt(x_dist**2 + y_dist**2)
         return cost
 
     def get_neighbours(self, node):
@@ -549,8 +560,11 @@ class A_star_online(): # G COST IS ALWAYS 1 NO MATTER WHAT
                 else:
                     neighbour_temp = Node(neighbour, None, 0, 0, False)
                     h_cost = self.get_dist(neighbour_temp, self.goal_node)
-                    g_cost = self.current_node.gcost + self.get_dist(
+                    # g_cost = self.current_node.gcost + self.get_dist(
+                    #     neighbour_temp, self.current_node)
+                    g_cost = self.current_node.gcost + self.get_dist_n(
                         neighbour_temp, self.current_node)
+                    # g_cost = self.current_node.gcost + 1  # g cost is always 1
                     neighbour_node = Node(neighbour, self.current_node, g_cost,
                                           h_cost, False)
 
@@ -619,8 +633,8 @@ class A_star_online(): # G COST IS ALWAYS 1 NO MATTER WHAT
             else:
                 neighbour_temp = Node(neighbour, None, 0, 0, False)
                 h_cost = self.get_dist(neighbour_temp, self.goal_node)
-                g_cost = self.current_node.gcost + self.get_dist(
-                    neighbour_temp, self.current_node)
+                g_cost = self.current_node.gcost + self.get_dist_n(
+                         neighbour_temp, self.current_node)
                 neighbour_node = Node(neighbour, self.current_node, g_cost,
                                       h_cost, False)
 
@@ -691,11 +705,12 @@ class Robot():
     def control(self, goal):
         dist_i = np.sqrt((self.x - goal[0])**2 + (self.y - goal[1])**2)
         dist = dist_i
-        Kpv = 0.01
+        Kpv = 0.02
         Kpw = 0.3
         i = 0
 
         while dist > self.thresh:
+            # print(dist - self.thresh)
             # Controller Noise
             self.noise = [
                 np.random.normal(0, self.std[0]),
@@ -795,6 +810,7 @@ class Robot():
     def move_live(self, curr, goal):
         self.x = curr[0]
         self.y = curr[1]
+        # print([self.x, self.y, self.th])
         # don't modify self.theta
 
         self.control(goal)
@@ -1151,30 +1167,36 @@ def a10(landmark_list, start, goal):
     grid_size = 0.1
     a_grid = Grid(grid_size, landmark_list)
 
-    astar = A_star_online(a_grid, start, goal, False)
-    path = astar.plan()
+    # astar = A_star_online(a_grid, start, goal, False)
+    # path = astar.plan()
 
     astar2 = A_star_online(a_grid, start, goal, False)
     max_u = [0.288, 5.579]
     thresh = 0.005
-    std = [2, 2]
+    std = [0.1, 0.1]
     done = False
 
     curr = start
+    path = [start]
     # bot_path = []
 
     robot = Robot(max_u, thresh, path, std)
-
+    i = 0
     while done is False:
+        print(i)
+        i += 1
+        # perform A* plan for current node
         waypoint = astar2.plan_live(curr)
-        print("curr {} \n" .format(curr))
+        path.append(waypoint)
         print("waypoint: {}".format(waypoint))
+        print("curr {} \n" .format(curr))
         # feed waypoint to robot instance
+        # Move robot to next node
         bot_waypoints = robot.move_live(curr, waypoint)
         # bot_path.append(bot_waypoints)
         # print(len(bot_waypoints))
+        # Set current node to next node for loop
         curr = [bot_waypoints[-1][0], bot_waypoints[-1][1]]
-        print("curr {} \n" .format(curr))
         # print("goal {} \n" .format(goal))
         check = np.sqrt((curr[0] - goal[0])**2 + (curr[1] - goal[1])**2)
         if check < thresh:
