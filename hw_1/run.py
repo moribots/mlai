@@ -152,8 +152,12 @@ class A_star():
         """ Returns world coordinates of fed grid coordinate values
         """
         c = self.grid.cell_size
-        x = c * (coord[0] + (c / 2)) + self.grid.xmin
-        y = c * (coord[1] + (c / 2)) + self.grid.ymin
+        if c == 1:
+            x = c * (coord[0] + (c / 2)) + self.grid.xmin
+            y = c * (coord[1] + (c / 2)) + self.grid.ymin
+        elif c == 0.1:
+            x = coord[0] * c - 1.95
+            y = coord[1] * c - 5.95
         return [x, y]
 
     def get_dist(self, node1, node2):
@@ -376,8 +380,12 @@ class A_star_online():
         """ Returns world coordinates of fed grid coordinate values
         """
         c = self.grid.cell_size
-        x = c * (coord[0] + (c / 2)) + self.grid.xmin
-        y = c * (coord[1] + (c / 2)) + self.grid.ymin
+        if c == 1:
+            x = c * (coord[0] + (c / 2)) + self.grid.xmin
+            y = c * (coord[1] + (c / 2)) + self.grid.ymin
+        elif c == 0.1:
+            x = coord[0] * c - 1.95
+            y = coord[1] * c - 5.95
         return [x, y]
 
     def get_dist(self, node1, node2):
@@ -436,12 +444,15 @@ class A_star_online():
 
         self.path.reverse()  # reverse path
 
+        # print("GRID: {}".format(self.path))
+
         # bring back to world coord
         for i in range(len(self.path)):
             self.path[i] = self.grid2world(self.path[i])
 
         path = self.path
         path.insert(0, self.start)
+        # print("WORLD: {}".format(path))
 
         return path
 
@@ -534,7 +545,7 @@ class Robot():
     def __init__(self, max_u, thresh, nodes):
         self.x = nodes[0][0]
         self.y = nodes[0][1]
-        self.th = -np.pi / 2
+        self.th = -np.pi / 2  # start heading
         self.max = max_u
         self.thresh = thresh
         self.noise = 0
@@ -616,7 +627,7 @@ class Robot():
                 u[1] = self.u_w_prev + self.max[1] * self.dt
                 # update angular velocity for next loop
                 self.u_w_prev = u[1]
-            elif a_th < - self.max[1]:
+            elif a_th < -self.max[1]:
                 u[1] = self.u_w_prev - self.max[1] * self.dt
                 self.u_w_prev = u[1]
             else:
@@ -658,8 +669,8 @@ class Robot():
             self.th = new_state[2]
             self.path.append(new_state)
 
-            if self.i == 12:
-                print(u)
+            # if self.i == 12:
+            #     print(u)
 
     def move(self):
         for i in range(len(self.nodes) - 1):
@@ -695,7 +706,6 @@ def read_dat(start_index, file_path, usecols):
 def plot_a(landmark_list, a_grid, path, neighbours, exp_nodes):
     """ Plot path and (naive) expanded nodes
     """
-
     # Initialise Plot
     fig, ax = plt.subplots()
 
@@ -783,8 +793,8 @@ def plot_a(landmark_list, a_grid, path, neighbours, exp_nodes):
     # ax.xaxis.set_major_locator(loc)
     # ax.yaxis.set_major_locator(loc)
     # ax.grid(which='major', axis='both')
-    # ax.set_xticks(np.arange(-2, 5, cell_size))
-    # ax.set_yticks(np.arange(-6, 6, cell_size))
+    # ax.set_xticks(np.arange(-2, 5, a_grid.cell_size))
+    ax.set_yticks(np.arange(-6, 6, a_grid.cell_size))
 
     # Turn grid on for both major and minor ticks and style minor slightly
     # differently.
@@ -921,6 +931,17 @@ def plot_b(landmark_list, a_grid, path, bot_path):
                 s=50 * a_grid.cell_size,
                 label='Path Points')
 
+    # Plot Heading Arrows
+    for i in range(len(bot_path)):
+        if i % 500 == 0:
+            plt.arrow(bot_path[i][0],
+                      bot_path[i][1],
+                      0.1 * np.cos(bot_path[i][2]),
+                      0.1 * np.sin(bot_path[i][2]),
+                      head_width=0.1,
+                      color='green',
+                      ec='k')
+
     # Plot Start
     plt.plot(path_x[0],
              path_y[0],
@@ -941,12 +962,12 @@ def plot_b(landmark_list, a_grid, path, bot_path):
     ax.annotate('Start',
                 xy=(path_x[0], path_y[0]),
                 xytext=(path_x[0] + 1, path_y[0] - 1),
-                arrowprops=dict(facecolor='green', shrink=0.05))
+                arrowprops=dict(facecolor='darkviolet', shrink=0.05))
     # Annotate Goal
     ax.annotate('Goal',
                 xy=(path_x[-1], path_y[-1]),
                 xytext=(path_x[-1] + 1, path_y[-1] + 1),
-                arrowprops=dict(facecolor='green', shrink=0.05))
+                arrowprops=dict(facecolor='darkviolet', shrink=0.05))
 
     # Set axis ranges
     ax.set_xlim(a_grid.xmin, a_grid.xmax)
