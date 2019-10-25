@@ -542,13 +542,14 @@ class A_star_online():
 
 
 class Robot():
-    def __init__(self, max_u, thresh, nodes):
+    def __init__(self, max_u, thresh, nodes, std):
         self.x = nodes[0][0]
         self.y = nodes[0][1]
         self.th = -np.pi / 2  # start heading
         self.max = max_u
         self.thresh = thresh
-        self.noise = 0
+        self.noise = []
+        self.std = std
         self.dt = 0.1
         self.nodes = nodes
         self.path = []
@@ -574,10 +575,10 @@ class Robot():
         return xnew
 
     def dynamics(self, x0, u):
-        x_dot = u[0] * np.cos(x0[2])
+        x_dot = u[0] * np.cos(x0[2]) * (1 + self.noise[0])
         # print(x_dot)
-        y_dot = u[0] * np.sin(x0[2])
-        w = u[1]
+        y_dot = u[0] * np.sin(x0[2]) * (1 + self.noise[0])
+        w = u[1] * (1 + self.noise[1])
         return np.array([x_dot, y_dot, w])
 
     def euler_intgr(self, x0, u):
@@ -595,6 +596,11 @@ class Robot():
         i = 0
 
         while dist > self.thresh:
+            # Controller Noise
+            self.noise = [
+                np.random.normal(0, self.std[0]),
+                np.random.normal(0, self.std[1])
+            ]
             # print(dist - self.thresh)
             # print(i)
             i += 1
@@ -604,9 +610,9 @@ class Robot():
             bearing = np.arctan2(o, a) - self.th
             # Bias bearing direction if above or below pi
             if bearing >= np.pi:
-                bearing = (bearing - np.pi) * - 1
+                bearing = (bearing - np.pi) * -1
             if bearing <= -np.pi:
-                bearing = (bearing + np.pi) * - 1
+                bearing = (bearing + np.pi) * -1
 
             # print(bearing)
             # Set Kpv and Kpw for max v and w
@@ -674,9 +680,6 @@ class Robot():
             self.y = new_state[1]
             self.th = new_state[2]
             self.path.append(new_state)
-
-            # if self.i == 12:
-            #     print(u)
 
     def move(self):
         for i in range(len(self.nodes) - 1):
@@ -1027,7 +1030,8 @@ def a9(landmark_list, start, goal):
     thresh = 0.005
 
     path = astar.plan()
-    robot = Robot(max_u, thresh, path)
+    std = [2, 2]
+    robot = Robot(max_u, thresh, path, std)
     bot_path = robot.move()
 
     plot_b(landmark_list, a_grid, path, bot_path)
