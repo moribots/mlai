@@ -602,6 +602,12 @@ class Robot():
             o = goal[1] - self.y
             a = goal[0] - self.x
             bearing = np.arctan2(o, a) - self.th
+            # Bias bearing direction if above or below pi
+            if bearing >= np.pi:
+                bearing = (bearing - np.pi) * - 1
+            if bearing <= -np.pi:
+                bearing = (bearing + np.pi) * - 1
+
             # print(bearing)
             # Set Kpv and Kpw for max v and w
             u = [Kpv * dist, Kpw * bearing]
@@ -933,7 +939,7 @@ def plot_b(landmark_list, a_grid, path, bot_path):
 
     # Plot Heading Arrows
     for i in range(len(bot_path)):
-        if i % 500 == 0:
+        if i % 100 == 0 or i == 0:
             plt.arrow(bot_path[i][0],
                       bot_path[i][1],
                       0.1 * np.cos(bot_path[i][2]),
