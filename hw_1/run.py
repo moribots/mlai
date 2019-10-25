@@ -397,6 +397,11 @@ class A_star_online():
             cost = 1.4 * y_dist + 1.0 * (x_dist - y_dist)
         else:
             cost = 1.4 * x_dist + 1.0 * (y_dist - x_dist)
+        # cost = np.sqrt(x_dist**2 + y_dist**2)
+        # Use different cost fcn for online or 5 B will get stuck
+        # since straight is cheaper than diagonal, so it will put itself
+        # in a terminated path.
+        # ADD TO REPORT DISCUSION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         return cost
 
     def get_neighbours(self, node):
@@ -488,6 +493,7 @@ class A_star_online():
 
         it = 0
         while len(self.open_list) > 0:
+            # pprint(vars(self.current_node))
             it += 1
             # Simultaneously set current node and remove it from openlist
             self.current_node = heapq.heappop(self.open_list)
@@ -803,7 +809,7 @@ def plot_a(landmark_list, a_grid, path, neighbours, exp_nodes):
     # ax.yaxis.set_major_locator(loc)
     # ax.grid(which='major', axis='both')
     # ax.set_xticks(np.arange(-2, 5, a_grid.cell_size))
-    ax.set_yticks(np.arange(-6, 6, a_grid.cell_size))
+    # ax.set_yticks(np.arange(-6, 6, a_grid.cell_size))
 
     # Turn grid on for both major and minor ticks and style minor slightly
     # differently.
