@@ -100,7 +100,7 @@ class Node():
         return self.heap < neighbour.heap
 
 
-class A_star():
+class A_star(): # G COST IS ALWAYS 1 NO MATTER WHAT
     def __init__(self, grid, start, goal):
         # import grid instance of Grid class
         self.grid = grid
@@ -172,6 +172,7 @@ class A_star():
             cost = 1.4 * x_dist + 1.0 * (y_dist - x_dist)
         """
         cost = np.sqrt(x_dist**2 + y_dist**2)
+        # TRY WITHOUT SQUARE ROOT!!!!!!!!!!!!!!!!!!!!!!!
         return cost
 
     def get_neighbours(self, node):
@@ -328,8 +329,10 @@ class A_star():
                     # pprint(vars(neighbour_node))
 
 
-class A_star_online():
-    def __init__(self, grid, start, goal):
+class A_star_online(): # G COST IS ALWAYS 1 NO MATTER WHAT
+    def __init__(self, grid, start, goal, robot):
+        # Determine whether to plan iteratively or not
+        self.robot = robot  # T or F
         # import grid instance of Grid class
         self.grid = grid
         # set obstacle indeces in grid coords
@@ -393,15 +396,19 @@ class A_star_online():
         """
         x_dist = abs(node1.position[0] - node2.position[0])
         y_dist = abs(node1.position[1] - node2.position[1])
+        # covering more x = priority so y cost higher
         if x_dist > y_dist:
             cost = 1.4 * y_dist + 1.0 * (x_dist - y_dist)
+        # covering more y = priority so x cost higher
         else:
             cost = 1.4 * x_dist + 1.0 * (y_dist - x_dist)
+        # TRY WITHOUT SQUARE ROOT!!!!!!!!!!!!!!!!!!!!!!!
         # cost = np.sqrt(x_dist**2 + y_dist**2)
         # Use different cost fcn for online or 5 B will get stuck
         # since straight is cheaper than diagonal, so it will put itself
         # in a terminated path.
         # ADD TO REPORT DISCUSION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # TRY USING DIAG = STRAIGHT = 1
         return cost
 
     def get_neighbours(self, node):
@@ -458,6 +465,16 @@ class A_star_online():
         path = self.path
         path.insert(0, self.start)
         # print("WORLD: {}".format(path))
+
+        return path
+
+    def trace_path_live(self, startnode, endnode):
+        """ Traces live path from start to end node (one connection)
+        """
+        start = self.grid2world(startnode)
+        end = self.grid2world(endnode)
+
+        path = [start, end]
 
         return path
 
@@ -545,6 +562,83 @@ class A_star_online():
             if len(self.neighbour_list) > 0:
                 neighbour_node = heapq.heappop(self.neighbour_list)
                 heapq.heappush(self.open_list, neighbour_node)
+
+    def plan_live(self, curr):
+        """ Main Planning Loop
+            for A* (online with real robot motion)
+
+            Steps:
+
+            1. Append start node to open list
+            2. LOOP ONCE:
+                a- set current node to that with lowest f cost
+                in open list. If some nodes have the same f cost,
+                choose current node using h cost
+
+                b- get the 8 neighbours of each node (or less depending
+                on proximity to grid limits)
+
+                c- for each node:
+                    i - if it is inside the closed list,
+                    or if it is an obstacle, ignore it
+                    ii - if none of these conditions are met,
+                    add the node to the open list and set its parent
+                    to the current node after calculating its g and h cost
+                d - only append the node with the lowest f cost to the open
+                list. If some nodes have the same f cost, sort using h cost.
+            3. If goal is found, return true
+        """
+        # Make node position actual robot position
+        curr = self.world2grid(curr)
+        # Initialised as start for iteration 0
+        self.current_node.position = curr
+
+        self.neighbour_list = []  # restart neighbour list every iteration
+        heapq.heapify(self.neighbour_list)
+
+        for neighbour in self.get_neighbours(self.current_node):
+            # print("Neighbour pos: {}".format(neighbour))
+            skip = False
+
+            # see if matches coords in closed list
+            for node in self.closed_list:
+                if neighbour[0] == node.position[0] and neighbour[
+                        1] == node.position[1]:
+                    # node exists in closed lit
+                    skip = True
+
+            # see if index matches obstacle list
+            for obstacle in self.obstacle_list:
+                if neighbour[0] == obstacle[0] and neighbour[
+                        1] == obstacle[1]:
+                    skip = True
+
+            if skip is True:
+                continue
+            # if in none of these lists, create new node
+            else:
+                neighbour_temp = Node(neighbour, None, 0, 0, False)
+                h_cost = self.get_dist(neighbour_temp, self.goal_node)
+                g_cost = self.current_node.gcost + self.get_dist(
+                    neighbour_temp, self.current_node)
+                neighbour_node = Node(neighbour, self.current_node, g_cost,
+                                      h_cost, False)
+
+                # Push to the right index by comparing .heap
+                # attribute defined in node class under __lt__
+                # (less than)
+                heapq.heappush(self.neighbour_list, neighbour_node)
+
+        if len(self.neighbour_list) > 0:
+                neighbour_node = heapq.heappop(self.neighbour_list)
+                end_pos = neighbour_node.position
+                start_pos = self.current_node.position
+                # overwrite self.current to retain node info
+                # for next iteration
+                self.current_node = neighbour_node
+                start_pos = self.grid2world(start_pos)
+                end_pos = self.grid2world(end_pos)
+                return end_pos
 
 
 class Robot():
@@ -676,6 +770,7 @@ class Robot():
             x0 = np.array([self.x, self.y, self.th])
             new_state = self.rk4_intgr(x0, u)
             # new_state = self.euler_intgr(x0, u)
+            # print(new_state)
 
             # update directional velocities for next loop
             self.u_x_prev = abs(self.x - new_state[0]) / self.dt
@@ -691,10 +786,19 @@ class Robot():
         for i in range(len(self.nodes) - 1):
             goal = self.nodes[i + 1]
             self.control(goal)
-            print([self.x, self.y, self.th])
+            # print([self.x, self.y, self.th])
             self.i = i
-            print(self.i)
+            # print(self.i)
             # print(self.nodes[i][0])
+        return self.path
+
+    def move_live(self, curr, goal):
+        self.x = curr[0]
+        self.y = curr[1]
+        # don't modify self.theta
+
+        self.control(goal)
+
         return self.path
 
 
@@ -860,7 +964,7 @@ def a3(landmark_list, start, goal):
 def a5(landmark_list, start, goal):
     grid_size = 1
     a_grid = Grid(grid_size, landmark_list)
-    astar = A_star_online(a_grid, start, goal)
+    astar = A_star_online(a_grid, start, goal, False)
 
     path = astar.plan()
 
@@ -884,7 +988,7 @@ def a7(landmark_list, start, goal, algo):
     a_grid = Grid(grid_size, landmark_list)
 
     if algo is True:
-        astar = A_star_online(a_grid, start, goal)
+        astar = A_star_online(a_grid, start, goal, False)
     elif algo is False:
         astar = A_star(a_grid, start, goal)
 
@@ -1031,7 +1135,7 @@ def a9(landmark_list, start, goal):
     grid_size = 0.1
     a_grid = Grid(grid_size, landmark_list)
 
-    astar = A_star_online(a_grid, start, goal)
+    astar = A_star_online(a_grid, start, goal, False)
     max_u = [0.288, 5.579]
     thresh = 0.005
 
@@ -1041,6 +1145,44 @@ def a9(landmark_list, start, goal):
     bot_path = robot.move()
 
     plot_b(landmark_list, a_grid, path, bot_path)
+
+
+def a10(landmark_list, start, goal):
+    grid_size = 0.1
+    a_grid = Grid(grid_size, landmark_list)
+
+    astar = A_star_online(a_grid, start, goal, False)
+    path = astar.plan()
+
+    astar2 = A_star_online(a_grid, start, goal, False)
+    max_u = [0.288, 5.579]
+    thresh = 0.005
+    std = [2, 2]
+    done = False
+
+    curr = start
+    # bot_path = []
+
+    robot = Robot(max_u, thresh, path, std)
+
+    while done is False:
+        waypoint = astar2.plan_live(curr)
+        print("curr {} \n" .format(curr))
+        print("waypoint: {}".format(waypoint))
+        # feed waypoint to robot instance
+        bot_waypoints = robot.move_live(curr, waypoint)
+        # bot_path.append(bot_waypoints)
+        # print(len(bot_waypoints))
+        curr = [bot_waypoints[-1][0], bot_waypoints[-1][1]]
+        print("curr {} \n" .format(curr))
+        # print("goal {} \n" .format(goal))
+        check = np.sqrt((curr[0] - goal[0])**2 + (curr[1] - goal[1])**2)
+        if check < thresh:
+            done is True
+            break
+    #print(bot_path[0])
+
+    plot_b(landmark_list, a_grid, path, bot_waypoints)
 
 
 # Main
@@ -1117,6 +1259,18 @@ def main():
             start = [-0.55, 1.45]
             goal = [1.95, 3.95]
         a9(landmark_list, start, goal)
+    elif exercise == '10':
+        input = raw_input('Select a set of coordinates [A, B, C]').upper()
+        if input == 'A':
+            start = [2.45, -3.55]
+            goal = [0.95, -1.55]
+        elif input == 'B':
+            start = [4.95, -0.05]
+            goal = [2.45, 0.25]
+        elif input == 'C':
+            start = [-0.55, 1.45]
+            goal = [1.95, 3.95]
+        a10(landmark_list, start, goal)
 
 
 if __name__ == "__main__":
