@@ -165,14 +165,18 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
         """
         x_dist = abs(node1.position[0] - node2.position[0])
         y_dist = abs(node1.position[1] - node2.position[1])
+        D1 = 1
+        D2 = 1  # np.sqrt(2)  # or use 1
+        cost = D1 * (x_dist + y_dist) + (D2 - 2 * D1) * min(x_dist, y_dist)
+        # cost = np.sqrt(x_dist**2 + y_dist**2)
+        return cost
+
+    def get_dist_n(self, node1, node2):
+        """Computes heuristic using manhattan distance
         """
-        if x_dist > y_dist:
-            cost = 1.4 * y_dist + 1.0 * (x_dist - y_dist)
-        else:
-            cost = 1.4 * x_dist + 1.0 * (y_dist - x_dist)
-        """
+        x_dist = abs(node1.position[0] - node2.position[0])
+        y_dist = abs(node1.position[1] - node2.position[1])
         cost = np.sqrt(x_dist**2 + y_dist**2)
-        # TRY WITHOUT SQUARE ROOT!!!!!!!!!!!!!!!!!!!!!!!
         return cost
 
     def get_neighbours(self, node):
@@ -307,7 +311,7 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
                 elif opened is False:
                     neighbour_temp = Node(neighbour, None, 0, 0, False)
                     h_cost = self.get_dist(neighbour_temp, self.goal_node)
-                    g_cost = self.current_node.gcost + self.get_dist(
+                    g_cost = self.current_node.gcost + self.get_dist_n(
                         neighbour_temp, self.current_node)
                     neighbour_node = Node(neighbour, self.current_node, g_cost,
                                           h_cost, False)
