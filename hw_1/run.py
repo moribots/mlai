@@ -166,7 +166,7 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
         x_dist = abs(node1.position[0] - node2.position[0])
         y_dist = abs(node1.position[1] - node2.position[1])
         D1 = 1
-        D2 = 1  # np.sqrt(2)  # or use 1
+        D2 = np.sqrt(2)  # or use 1
         cost = D1 * (x_dist + y_dist) + (D2 - 2 * D1) * min(x_dist, y_dist)
         # cost = np.sqrt(x_dist**2 + y_dist**2)
         return cost
@@ -449,8 +449,8 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
         """
         # Make node position actual robot position
         curr = self.world2grid(curr)
-        # print("curr pos: {}".format(curr))
-        # print("goal pos: {}".format(self.goal_node.position))
+        print("curr pos: {}".format(curr))
+        print("goal pos: {}".format(self.goal_node.position))
         # Initialised as start for iteration 0
         self.current_node.position = curr
 
@@ -635,7 +635,7 @@ class Robot():
     def move_live(self, curr, goal):
         self.x = curr[0]
         self.y = curr[1]
-        print([self.x, self.y, self.th])
+        # print([self.x, self.y, self.th])
         # don't modify self.theta
 
         self.control(goal)
@@ -846,6 +846,7 @@ def a7(landmark_list, start, goal, algo):
     for node in closed_list:
         position = astar.grid2world(node.position)
         closed_l.append(position)
+    # print(path)
 
     plot_a(landmark_list, a_grid, path, open_l, closed_l)
 
@@ -990,7 +991,7 @@ def a10(landmark_list, start, goal):
     grid_size = 0.1
     a_grid = Grid(grid_size, landmark_list)
 
-    astar2 = A_star(a_grid, start, goal)
+    astar = A_star(a_grid, start, goal)
     thresh = 0.005
     done = False
 
@@ -1003,7 +1004,7 @@ def a10(landmark_list, start, goal):
         print("iteration: {}".format(i))
         i += 1
         # perform A* plan for current node
-        waypoint = astar2.plan_live(curr)
+        waypoint = astar.plan_live(curr)
         path.append(waypoint)
         # feed waypoint to robot instance
         # Move robot to next node
@@ -1022,7 +1023,7 @@ def a10(landmark_list, start, goal):
 def a11(landmark_list, start, goal, grid_size):
     a_grid = Grid(grid_size, landmark_list)
 
-    astar2 = A_star(a_grid, start, goal)
+    astar = A_star(a_grid, start, goal)
     thresh = 0.005
     done = False
 
@@ -1035,8 +1036,9 @@ def a11(landmark_list, start, goal, grid_size):
         print("iteration: {}".format(i))
         i += 1
         # perform A* plan for current node
-        waypoint = astar2.plan_live(curr)
+        waypoint = astar.plan_live(curr)
         path.append(waypoint)
+        print("waypoint: {}".format(waypoint))
         # feed waypoint to robot instance
         # Move robot to next node
         bot_waypoints = robot.move_live(curr, waypoint)
@@ -1044,7 +1046,8 @@ def a11(landmark_list, start, goal, grid_size):
         curr = [bot_waypoints[-1][0], bot_waypoints[-1][1]]
         check = np.sqrt((curr[0] - goal[0])**2 +
                         (curr[1] - goal[1])**2)
-        if check < thresh:
+        print(check)
+        if check < 0.07:
             done is True
             break
 
@@ -1071,14 +1074,14 @@ def main():
     if exercise == '3' or exercise == '5' or exercise == '11':
         input = raw_input('Select a set of coordinates [A, B, C]').upper()
         if input == 'A':
-            start = [0.55, -1.55]
-            goal = [0.55, 1.55]
+            start = [0.5, -1.5]
+            goal = [0.5, 1.5]
         elif input == 'B':
-            start = [4.55, 3.55]
-            goal = [4.55, -1.55]
+            start = [4.5, 3.5]
+            goal = [4.5, -1.5]
         elif input == 'C':
-            start = [-0.55, 5.55]
-            goal = [1.55, -3.55]
+            start = [-0.5, 5.5]
+            goal = [1.5, -3.5]
         if exercise == '3':
             # Exercise 3: Naive Search
             a3(landmark_list, start, goal)
@@ -1098,14 +1101,14 @@ def main():
         input = raw_input('Select a set of coordinates [A, B, C]').upper()
         algo = raw_input('Use Online or Naive Algo?').upper()
         if input == 'A':
-            start = [2.45, -3.55]
-            goal = [0.95, -1.55]
+            start = [0.5, -1.5]
+            goal = [0.5, 1.5]
         elif input == 'B':
-            start = [4.95, -0.05]
-            goal = [2.45, 0.25]
+            start = [4.5, 3.5]
+            goal = [4.5, -1.5]
         elif input == 'C':
-            start = [-0.55, 1.45]
-            goal = [1.95, 3.95]
+            start = [-0.5, 5.5]
+            goal = [1.5, -3.5]
         if algo == 'ONLINE':
             algo = True
         elif algo == 'NAIVE':
