@@ -100,7 +100,7 @@ class Node():
         return self.heap < neighbour.heap
 
 
-class A_star(): # G COST IS ALWAYS 1 NO MATTER WHAT
+class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
     def __init__(self, grid, start, goal):
         # import grid instance of Grid class
         self.grid = grid
@@ -329,7 +329,7 @@ class A_star(): # G COST IS ALWAYS 1 NO MATTER WHAT
                     # pprint(vars(neighbour_node))
 
 
-class A_star_online(): # G COST IS ALWAYS 1 NO MATTER WHAT
+class A_star_online():  # G COST IS ALWAYS 1 NO MATTER WHAT
     def __init__(self, grid, start, goal, robot):
         # Determine whether to plan iteratively or not
         self.robot = robot  # T or F
@@ -399,19 +399,11 @@ class A_star_online(): # G COST IS ALWAYS 1 NO MATTER WHAT
         D1 = 1
         D2 = 1  # np.sqrt(2)  # or use 1
         cost = D1 * (x_dist + y_dist) + (D2 - 2 * D1) * min(x_dist, y_dist)
-        # covering more x = priority so y cost higher
-        # if x_dist > y_dist:
-        #     cost = 1.4 * y_dist + 1.0 * (x_dist - y_dist)
-        # # covering more y = priority so x cost higher
-        # else:
-        #     cost = 1.4 * x_dist + 1.0 * (y_dist - x_dist)
-        # TRY WITHOUT SQUARE ROOT!!!!!!!!!!!!!!!!!!!!!!!
         # cost = np.sqrt(x_dist**2 + y_dist**2)
         # Use different cost fcn for online or 5 B will get stuck
         # since straight is cheaper than diagonal, so it will put itself
         # in a terminated path.
         # ADD TO REPORT DISCUSION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # TRY USING DIAG = STRAIGHT = 1
         return cost
 
     def get_dist_n(self, node1, node2):
@@ -564,7 +556,7 @@ class A_star_online(): # G COST IS ALWAYS 1 NO MATTER WHAT
                     #     neighbour_temp, self.current_node)
                     g_cost = self.current_node.gcost + self.get_dist_n(
                         neighbour_temp, self.current_node)
-                    # g_cost = self.current_node.gcost + 1  # g cost is always 1
+                    # g_cost = self.current_node.gcost + 1
                     neighbour_node = Node(neighbour, self.current_node, g_cost,
                                           h_cost, False)
 
@@ -575,6 +567,8 @@ class A_star_online(): # G COST IS ALWAYS 1 NO MATTER WHAT
 
             if len(self.neighbour_list) > 0:
                 neighbour_node = heapq.heappop(self.neighbour_list)
+                # Avoid back-tracking
+                self.closed_list.append(neighbour_node)
                 heapq.heappush(self.open_list, neighbour_node)
 
     def plan_live(self, curr):
@@ -604,6 +598,8 @@ class A_star_online(): # G COST IS ALWAYS 1 NO MATTER WHAT
         """
         # Make node position actual robot position
         curr = self.world2grid(curr)
+        # print("curr pos: {}".format(curr))
+        # print("goal pos: {}".format(self.goal_node.position))
         # Initialised as start for iteration 0
         self.current_node.position = curr
 
@@ -623,8 +619,7 @@ class A_star_online(): # G COST IS ALWAYS 1 NO MATTER WHAT
 
             # see if index matches obstacle list
             for obstacle in self.obstacle_list:
-                if neighbour[0] == obstacle[0] and neighbour[
-                        1] == obstacle[1]:
+                if neighbour[0] == obstacle[0] and neighbour[1] == obstacle[1]:
                     skip = True
 
             if skip is True:
@@ -634,7 +629,7 @@ class A_star_online(): # G COST IS ALWAYS 1 NO MATTER WHAT
                 neighbour_temp = Node(neighbour, None, 0, 0, False)
                 h_cost = self.get_dist(neighbour_temp, self.goal_node)
                 g_cost = self.current_node.gcost + self.get_dist_n(
-                         neighbour_temp, self.current_node)
+                    neighbour_temp, self.current_node)
                 neighbour_node = Node(neighbour, self.current_node, g_cost,
                                       h_cost, False)
 
@@ -644,26 +639,28 @@ class A_star_online(): # G COST IS ALWAYS 1 NO MATTER WHAT
                 heapq.heappush(self.neighbour_list, neighbour_node)
 
         if len(self.neighbour_list) > 0:
-                neighbour_node = heapq.heappop(self.neighbour_list)
-                end_pos = neighbour_node.position
-                start_pos = self.current_node.position
-                # overwrite self.current to retain node info
-                # for next iteration
-                self.current_node = neighbour_node
-                start_pos = self.grid2world(start_pos)
-                end_pos = self.grid2world(end_pos)
-                return end_pos
+            neighbour_node = heapq.heappop(self.neighbour_list)
+            # Avoid back-tracking
+            self.closed_list.append(neighbour_node)
+            end_pos = neighbour_node.position
+            start_pos = self.current_node.position
+            # overwrite self.current to retain node info
+            # for next iteration
+            self.current_node = neighbour_node
+            start_pos = self.grid2world(start_pos)
+            end_pos = self.grid2world(end_pos)
+            return end_pos
 
 
 class Robot():
-    def __init__(self, max_u, thresh, nodes, std):
+    def __init__(self, thresh, nodes):
         self.x = nodes[0][0]
         self.y = nodes[0][1]
         self.th = -np.pi / 2  # start heading
-        self.max = max_u
+        self.max = [0.288, 5.579]
         self.thresh = thresh
         self.noise = []
-        self.std = std
+        self.std = [0.1, 0.1]
         self.dt = 0.1
         self.nodes = nodes
         self.path = []
@@ -706,7 +703,7 @@ class Robot():
         dist_i = np.sqrt((self.x - goal[0])**2 + (self.y - goal[1])**2)
         dist = dist_i
         Kpv = 0.02
-        Kpw = 0.3
+        Kpw = 0.6
         i = 0
 
         while dist > self.thresh:
@@ -723,21 +720,19 @@ class Robot():
             o = goal[1] - self.y
             a = goal[0] - self.x
             bearing = np.arctan2(o, a) - self.th
+
             # Bias bearing direction if above or below pi
             if bearing >= np.pi:
-                bearing = (bearing - np.pi) * -1
+                bearing -= 2 * np.pi
             if bearing <= -np.pi:
-                bearing = (bearing + np.pi) * -1
+                bearing += 2 * np.pi
 
             # print(bearing)
             # Set Kpv and Kpw for max v and w
             u = [Kpv * dist, Kpw * bearing]
-            u_x = u[0] * np.cos(self.th)
-            u_y = u[0] * np.sin(self.th)
             u_w = u[1]
-            a_x = abs(u_x - self.u_x_prev) / self.dt
-            a_y = abs(u_y - self.u_y_prev) / self.dt
-            a_lin = np.sqrt(a_x**2 + a_y**2)
+            u_v = u[0]
+            a_lin = u_v - self.u_v_prev / self.dt
             a_th = u_w - self.u_w_prev / self.dt
 
             if a_lin > self.max[0]:
@@ -760,31 +755,10 @@ class Robot():
             else:
                 self.u_w_prev = u[1]
 
-            # # Solve for Kpv
-            # while a_lin > self.max[0]:
-            #     Kpv -= 0.005
-            #     u_temp_lin = Kpv * dist
-            #     u_x = u_temp_lin * np.cos(self.th)
-            #     u_y = u_temp_lin * np.sin(self.th)
-            #     a_x = abs(u_x - self.u_x) / self.dt
-            #     a_y = abs(u_y - self.u_y) / self.dt
-            #     a_lin = np.sqrt(a_x**2 + a_y**2)
-            # # update v_t-1
-            # self.u_x = u_x
-            # self.u_y = u_y
-
-            # # Solve for Kpw
-            # while a_th > self.max[1]:
-            #     Kpw -= 0.001
-            #     u_th = Kpw * bearing
-            #     a_th = abs(u_th - self.u_th) / self.dt
-            # # update w_t-1
-            # self.u_th = u_th
-
             # Issue Control using RK4 intgr
             x0 = np.array([self.x, self.y, self.th])
-            new_state = self.rk4_intgr(x0, u)
-            # new_state = self.euler_intgr(x0, u)
+            # new_state = self.rk4_intgr(x0, u)
+            new_state = self.euler_intgr(x0, u)
             # print(new_state)
 
             # update directional velocities for next loop
@@ -803,7 +777,7 @@ class Robot():
             self.control(goal)
             # print([self.x, self.y, self.th])
             self.i = i
-            # print(self.i)
+            print("iteration: {}".format(i))
             # print(self.nodes[i][0])
         return self.path
 
@@ -1152,12 +1126,10 @@ def a9(landmark_list, start, goal):
     a_grid = Grid(grid_size, landmark_list)
 
     astar = A_star_online(a_grid, start, goal, False)
-    max_u = [0.288, 5.579]
     thresh = 0.005
 
     path = astar.plan()
-    std = [2, 2]
-    robot = Robot(max_u, thresh, path, std)
+    robot = Robot(thresh, path)
     bot_path = robot.move()
 
     plot_b(landmark_list, a_grid, path, bot_path)
@@ -1171,25 +1143,22 @@ def a10(landmark_list, start, goal):
     # path = astar.plan()
 
     astar2 = A_star_online(a_grid, start, goal, False)
-    max_u = [0.288, 5.579]
     thresh = 0.005
-    std = [0.1, 0.1]
     done = False
 
     curr = start
     path = [start]
-    # bot_path = []
 
-    robot = Robot(max_u, thresh, path, std)
+    robot = Robot(thresh, path)
     i = 0
     while done is False:
-        print(i)
+        print("iteration: {}".format(i))
         i += 1
         # perform A* plan for current node
         waypoint = astar2.plan_live(curr)
         path.append(waypoint)
-        print("waypoint: {}".format(waypoint))
-        print("curr {} \n" .format(curr))
+        # print("waypoint: {}".format(waypoint))
+        # print("curr {}".format(curr))
         # feed waypoint to robot instance
         # Move robot to next node
         bot_waypoints = robot.move_live(curr, waypoint)
@@ -1198,11 +1167,13 @@ def a10(landmark_list, start, goal):
         # Set current node to next node for loop
         curr = [bot_waypoints[-1][0], bot_waypoints[-1][1]]
         # print("goal {} \n" .format(goal))
-        check = np.sqrt((curr[0] - goal[0])**2 + (curr[1] - goal[1])**2)
+        check = np.sqrt((curr[0] - goal[0])**2 +
+                        (curr[1] - goal[1])**2)
+        # print("x check {}".format(waypoint[0] - goal[0]))
+        # print("y check {} \n".format(waypoint[1] - goal[1]))
         if check < thresh:
             done is True
             break
-    #print(bot_path[0])
 
     plot_b(landmark_list, a_grid, path, bot_waypoints)
 
