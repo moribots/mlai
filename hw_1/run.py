@@ -34,8 +34,6 @@ class Grid():
         self.cell_ymin = np.arange(self.ymin, self.ymax, self.cell_size)
         self.centres = np.ones((len(self.cell_xmin), len(self.cell_ymin)))
         self.landmarks = landmarks
-        self.prev_x = 0
-        self.prev_y = 0
         self.obstacles()
         if self.cell_size < 0.3:
             self.inflate_obstacles()
@@ -100,16 +98,17 @@ class Node():
         return self.heap < neighbour.heap
 
 
-class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
+class A_star():
     def __init__(self, grid, start, goal):
         # import grid instance of Grid class
         self.grid = grid
         # set obstacle indeces in grid coords
         self.obstacle_list = self.obstacle_list()
         # Import start coord
-        self.start = start
+        self.start = start  # [start[0] + 0.05, start[1] - 0.05]
         # Import goal coord
-        self.goal = goal
+        self.goal = goal  # [goal[0] + 0.05, goal[1] - 0.05]
+        print(self.goal)
         # Set start and goal coord to grid indeces
         self.start_grid = self.world2grid(start)
         self.goal_grid = self.world2grid(goal)
@@ -139,11 +138,11 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
         """
         for x in range(len(self.grid.cell_xmin)):
             if coord[0] >= self.grid.cell_xmin[x] and coord[
-                    0] < self.grid.cell_xmin[x] + self.grid.cell_size:
+                    0] <= self.grid.cell_xmin[x] + self.grid.cell_size:
                 index_x = x
         for y in range(len(self.grid.cell_ymin)):
             if coord[1] >= self.grid.cell_ymin[y] and coord[
-                    1] < self.grid.cell_ymin[y] + self.grid.cell_size:
+                    1] <= self.grid.cell_ymin[y] + self.grid.cell_size:
                 index_y = y
 
         return [index_x, index_y]
@@ -158,7 +157,7 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
         elif c == 0.1:
             x = coord[0] * c - 1.95
             y = coord[1] * c - 5.95
-        return [x, y]
+        return [np.around(x, decimals=2), np.around(y, decimals=2)]
 
     def get_dist(self, node1, node2):
         """Computes heuristic using manhattan distance
@@ -176,6 +175,9 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
         """
         x_dist = abs(node1.position[0] - node2.position[0])
         y_dist = abs(node1.position[1] - node2.position[1])
+        D1 = 1
+        D2 = np.sqrt(2)  # or use 1
+        # cost = D1 * (x_dist + y_dist) + (D2 - 2 * D1) * min(x_dist, y_dist)
         cost = np.sqrt(x_dist**2 + y_dist**2)
         return cost
 
@@ -449,10 +451,12 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
         """
         # Make node position actual robot position
         curr = self.world2grid(curr)
-        print("curr pos: {}".format(curr))
-        print("goal pos: {}".format(self.goal_node.position))
+        # print("curr pos: {}".format(curr))
+        # print("goal pos: {}".format(self.goal_node.position))
         # Initialised as start for iteration 0
         self.current_node.position = curr
+
+        self.closed_list.append(self.current_node)
 
         self.neighbour_list = []  # restart neighbour list every iteration
         heapq.heapify(self.neighbour_list)
@@ -480,7 +484,7 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
                 neighbour_temp = Node(neighbour, None, 0, 0, False)
                 h_cost = self.get_dist(neighbour_temp, self.goal_node)
                 g_cost = self.current_node.gcost + self.get_dist_n(
-                    neighbour_temp, self.current_node)
+                    self.current_node, neighbour_temp)
                 neighbour_node = Node(neighbour, self.current_node, g_cost,
                                       h_cost, False)
 
@@ -515,8 +519,6 @@ class Robot():
         self.dt = 0.1
         self.nodes = nodes
         self.path = []
-        self.u_x_prev = 0  # initial
-        self.u_y_prev = 0  # initial
         self.u_v_prev = 0  # initial
         self.u_w_prev = 0  # initial
         self.i = 0
@@ -900,7 +902,7 @@ def plot_b(landmark_list, a_grid, path, bot_path):
                       0.1 * np.cos(bot_path[i][2]),
                       0.1 * np.sin(bot_path[i][2]),
                       head_width=0.1,
-                      color='green',
+                      color='gold',
                       ec='k')
 
     # Plot Start
@@ -1011,8 +1013,7 @@ def a10(landmark_list, start, goal):
         bot_waypoints = robot.move_live(curr, waypoint)
         # Set current node to next node for loop
         curr = [bot_waypoints[-1][0], bot_waypoints[-1][1]]
-        check = np.sqrt((curr[0] - goal[0])**2 +
-                        (curr[1] - goal[1])**2)
+        check = np.sqrt((curr[0] - goal[0])**2 + (curr[1] - goal[1])**2)
         if check < thresh:
             done is True
             break
@@ -1023,6 +1024,7 @@ def a10(landmark_list, start, goal):
 def a11(landmark_list, start, goal, grid_size):
     a_grid = Grid(grid_size, landmark_list)
 
+    # goal = [0.55, 1.55]
     astar = A_star(a_grid, start, goal)
     thresh = 0.005
     done = False
@@ -1039,14 +1041,15 @@ def a11(landmark_list, start, goal, grid_size):
         waypoint = astar.plan_live(curr)
         path.append(waypoint)
         # print("waypoint: {}".format(waypoint))
+        # print("goal: {}".format(goal))
         # feed waypoint to robot instance
         # Move robot to next node
         bot_waypoints = robot.move_live(curr, waypoint)
         # Set current node to next node for loop
         curr = [bot_waypoints[-1][0], bot_waypoints[-1][1]]
-        check = np.sqrt((curr[0] - goal[0])**2 +
-                        (curr[1] - goal[1])**2)
-        if check < 0.07:
+        check = np.sqrt((curr[0] - goal[0])**2 + (curr[1] - goal[1])**2)
+        # print(check)
+        if check < 0.08:  # If there's a problem, change this...
             done is True
             break
 
@@ -1100,14 +1103,14 @@ def main():
         input = raw_input('Select a set of coordinates [A, B, C]').upper()
         algo = raw_input('Use Online or Naive Algo?').upper()
         if input == 'A':
-            start = [2.45, -3.55]
-            goal = [0.95, -1.55]
+            start = [0.5, -1.5]
+            goal = [0.5, 1.5]
         elif input == 'B':
-            start = [4.95, -0.05]
-            goal = [2.45, 0.25]
+            start = [4.5, 3.5]
+            goal = [4.5, -1.5]
         elif input == 'C':
-            start = [-0.55, 1.45]
-            goal = [1.95, 3.95]
+            start = [-0.5, 5.5]
+            goal = [1.5, -3.5]
         if algo == 'ONLINE':
             algo = True
         elif algo == 'NAIVE':
