@@ -139,11 +139,11 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
         """
         for x in range(len(self.grid.cell_xmin)):
             if coord[0] >= self.grid.cell_xmin[x] and coord[
-                    0] <= self.grid.cell_xmin[x] + self.grid.cell_size:
+                    0] < self.grid.cell_xmin[x] + self.grid.cell_size:
                 index_x = x
         for y in range(len(self.grid.cell_ymin)):
             if coord[1] >= self.grid.cell_ymin[y] and coord[
-                    1] <= self.grid.cell_ymin[y] + self.grid.cell_size:
+                    1] < self.grid.cell_ymin[y] + self.grid.cell_size:
                 index_y = y
 
         return [index_x, index_y]
@@ -233,7 +233,7 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
 
         return path
 
-    def plan(self):
+    def plan_naive(self):
         """ Main Planning Loop
             for A* (naive)
 
@@ -332,160 +332,7 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
                     # print("The chosen node is:")
                     # pprint(vars(neighbour_node))
 
-
-class A_star_online():  # G COST IS ALWAYS 1 NO MATTER WHAT
-    def __init__(self, grid, start, goal, robot):
-        # Determine whether to plan iteratively or not
-        self.robot = robot  # T or F
-        # import grid instance of Grid class
-        self.grid = grid
-        # set obstacle indeces in grid coords
-        self.obstacle_list = self.obstacle_list()
-        # Import start coord
-        self.start = start
-        # Import goal coord
-        self.goal = goal
-        # Set start and goal coord to grid indeces
-        self.start_grid = self.world2grid(start)
-        self.goal_grid = self.world2grid(goal)
-        # Init open and closed lists, and path
-        self.open_list = []
-        self.closed_list = []
-        self.path = []  # this is in world coord
-        self.start_node = Node(self.start_grid, None, 0, 0, False)
-        self.goal_node = Node(self.goal_grid, None, 0, 0, False)
-        # Init current node with 0 g cost and h cost determined by
-        # get_dist method
-        self.current_node = Node(
-            self.start_grid, None, 0,
-            self.get_dist(self.start_node, self.goal_node), False
-        )  # init at start  -- NEED TO REPLACE 2ND 0 WITH CALC HEUR FCN
-
-    def obstacle_list(self):
-        """ Returns indeces of obstacles in grid coord
-        """
-        indxs = np.where(self.grid.centres == 1000)
-        coords = list(zip(indxs[0], indxs[1]))
-
-        return coords
-
-    def world2grid(self, coord):
-        """ Returns grid coordinates of fed world coordinate values
-        """
-        for x in range(len(self.grid.cell_xmin)):
-            if coord[0] >= self.grid.cell_xmin[x] and coord[
-                    0] <= self.grid.cell_xmin[x] + self.grid.cell_size:
-                index_x = x
-        for y in range(len(self.grid.cell_ymin)):
-            if coord[1] >= self.grid.cell_ymin[y] and coord[
-                    1] <= self.grid.cell_ymin[y] + self.grid.cell_size:
-                index_y = y
-
-        return [index_x, index_y]
-
-    def grid2world(self, coord):
-        """ Returns world coordinates of fed grid coordinate values
-        """
-        c = self.grid.cell_size
-        if c == 1:
-            x = c * (coord[0] + (c / 2)) + self.grid.xmin
-            y = c * (coord[1] + (c / 2)) + self.grid.ymin
-        elif c == 0.1:
-            x = coord[0] * c - 1.95
-            y = coord[1] * c - 5.95
-        return [x, y]
-
-    def get_dist(self, node1, node2):
-        """Computes heuristic using manhattan distance
-        """
-        x_dist = abs(node1.position[0] - node2.position[0])
-        y_dist = abs(node1.position[1] - node2.position[1])
-        D1 = 1
-        D2 = 1  # np.sqrt(2)  # or use 1
-        cost = D1 * (x_dist + y_dist) + (D2 - 2 * D1) * min(x_dist, y_dist)
-        # cost = np.sqrt(x_dist**2 + y_dist**2)
-        # Use different cost fcn for online or 5 B will get stuck
-        # since straight is cheaper than diagonal, so it will put itself
-        # in a terminated path.
-        # ADD TO REPORT DISCUSION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        return cost
-
-    def get_dist_n(self, node1, node2):
-        """Computes heuristic using manhattan distance
-        """
-        x_dist = abs(node1.position[0] - node2.position[0])
-        y_dist = abs(node1.position[1] - node2.position[1])
-        cost = np.sqrt(x_dist**2 + y_dist**2)
-        return cost
-
-    def get_neighbours(self, node):
-        """ Evaluates 8 neighbours surrounding each
-            node (Cell)
-        """
-        neighbours = []
-
-        # Evaluate about 3x3 block
-        for x in range(-1, 2):  # x from -1 to 1
-            for y in range(-1, 2):
-                # skip at x = 0, y = 0
-                if x == 0 and y == 0:
-                    continue
-                else:
-                    check_x = node.position[0] + x
-                    check_y = node.position[1] + y
-                    # print("Checks: {}".format([check_x, check_y]))
-
-                    # ensure neighbour within grid bounds
-                    if check_x >= 0 and check_x < (
-                            self.grid.xmax / self.grid.cell_size -
-                            self.grid.xmin / self.grid.cell_size
-                    ) and check_y >= 0 and check_y < (
-                            self.grid.ymax / self.grid.cell_size -
-                            self.grid.ymin / self.grid.cell_size):
-                        neighbours.append([
-                            check_x, check_y
-                        ])  # add positions to neighbour lit and compare later
-
-        return neighbours
-
-    def trace_path(self, startnode, currnode):
-        """ Traces path from goal to start via
-            parent nodes of each node in closed list
-
-            Then converts path coordinates (grid indeces)
-            into world coordinates after reversing path
-        """
-        self.goal_node = self.current_node
-
-        while self.current_node.position != self.start_node.position:
-            self.path.append(self.current_node.position)
-            self.current_node = self.current_node.parent
-
-        self.path.reverse()  # reverse path
-
-        # print("GRID: {}".format(self.path))
-
-        # bring back to world coord
-        for i in range(len(self.path)):
-            self.path[i] = self.grid2world(self.path[i])
-
-        path = self.path
-        path.insert(0, self.start)
-        # print("WORLD: {}".format(path))
-
-        return path
-
-    def trace_path_live(self, startnode, endnode):
-        """ Traces live path from start to end node (one connection)
-        """
-        start = self.grid2world(startnode)
-        end = self.grid2world(endnode)
-
-        path = [start, end]
-
-        return path
-
-    def plan(self):
+    def plan_online(self):
         """ Main Planning Loop
             for A* (online)
 
@@ -761,8 +608,8 @@ class Robot():
 
             # Issue Control using RK4 intgr
             x0 = np.array([self.x, self.y, self.th])
-            # new_state = self.rk4_intgr(x0, u)
-            new_state = self.euler_intgr(x0, u)
+            new_state = self.rk4_intgr(x0, u)
+            # new_state = self.euler_intgr(x0, u)
             # print(new_state)
 
             # update directional velocities for next loop
@@ -788,7 +635,7 @@ class Robot():
     def move_live(self, curr, goal):
         self.x = curr[0]
         self.y = curr[1]
-        # print([self.x, self.y, self.th])
+        print([self.x, self.y, self.th])
         # don't modify self.theta
 
         self.control(goal)
@@ -938,7 +785,7 @@ def a3(landmark_list, start, goal):
     a_grid = Grid(grid_size, landmark_list)
     astar = A_star(a_grid, start, goal)
 
-    path = astar.plan()
+    path = astar.plan_naive()
 
     open_list = astar.open_list
     open_l = []
@@ -958,9 +805,9 @@ def a3(landmark_list, start, goal):
 def a5(landmark_list, start, goal):
     grid_size = 1
     a_grid = Grid(grid_size, landmark_list)
-    astar = A_star_online(a_grid, start, goal, False)
+    astar = A_star(a_grid, start, goal)
 
-    path = astar.plan()
+    path = astar.plan_online()
 
     open_list = astar.open_list
     open_l = []
@@ -981,12 +828,12 @@ def a7(landmark_list, start, goal, algo):
     grid_size = 0.1
     a_grid = Grid(grid_size, landmark_list)
 
-    if algo is True:
-        astar = A_star_online(a_grid, start, goal, False)
-    elif algo is False:
-        astar = A_star(a_grid, start, goal)
+    astar = A_star(a_grid, start, goal)
 
-    path = astar.plan()
+    if algo is True:
+        path = astar.plan_online()
+    elif algo is False:
+        path = astar.plan_naive()
 
     open_list = astar.open_list
     open_l = []
@@ -1129,10 +976,10 @@ def a9(landmark_list, start, goal):
     grid_size = 0.1
     a_grid = Grid(grid_size, landmark_list)
 
-    astar = A_star_online(a_grid, start, goal, False)
+    astar = A_star(a_grid, start, goal)
     thresh = 0.005
 
-    path = astar.plan()
+    path = astar.plan_online()
     robot = Robot(thresh, path)
     bot_path = robot.move()
 
@@ -1143,10 +990,7 @@ def a10(landmark_list, start, goal):
     grid_size = 0.1
     a_grid = Grid(grid_size, landmark_list)
 
-    # astar = A_star_online(a_grid, start, goal, False)
-    # path = astar.plan()
-
-    astar2 = A_star_online(a_grid, start, goal, False)
+    astar2 = A_star(a_grid, start, goal)
     thresh = 0.005
     done = False
 
@@ -1161,20 +1005,45 @@ def a10(landmark_list, start, goal):
         # perform A* plan for current node
         waypoint = astar2.plan_live(curr)
         path.append(waypoint)
-        # print("waypoint: {}".format(waypoint))
-        # print("curr {}".format(curr))
         # feed waypoint to robot instance
         # Move robot to next node
         bot_waypoints = robot.move_live(curr, waypoint)
-        # bot_path.append(bot_waypoints)
-        # print(len(bot_waypoints))
         # Set current node to next node for loop
         curr = [bot_waypoints[-1][0], bot_waypoints[-1][1]]
-        # print("goal {} \n" .format(goal))
         check = np.sqrt((curr[0] - goal[0])**2 +
                         (curr[1] - goal[1])**2)
-        # print("x check {}".format(waypoint[0] - goal[0]))
-        # print("y check {} \n".format(waypoint[1] - goal[1]))
+        if check < thresh:
+            done is True
+            break
+
+    plot_b(landmark_list, a_grid, path, bot_waypoints)
+
+
+def a11(landmark_list, start, goal, grid_size):
+    a_grid = Grid(grid_size, landmark_list)
+
+    astar2 = A_star(a_grid, start, goal)
+    thresh = 0.005
+    done = False
+
+    curr = start
+    path = [start]
+
+    robot = Robot(thresh, path)
+    i = 0
+    while done is False:
+        print("iteration: {}".format(i))
+        i += 1
+        # perform A* plan for current node
+        waypoint = astar2.plan_live(curr)
+        path.append(waypoint)
+        # feed waypoint to robot instance
+        # Move robot to next node
+        bot_waypoints = robot.move_live(curr, waypoint)
+        # Set current node to next node for loop
+        curr = [bot_waypoints[-1][0], bot_waypoints[-1][1]]
+        check = np.sqrt((curr[0] - goal[0])**2 +
+                        (curr[1] - goal[1])**2)
         if check < thresh:
             done is True
             break
@@ -1199,33 +1068,31 @@ def main():
 
     # Select Exercise
     exercise = raw_input('Select an exercise [3,5,7,9,10,11]')
-    if exercise == '3':
-        # Exercise 3: Naive Search
+    if exercise == '3' or exercise == '5' or exercise == '11':
         input = raw_input('Select a set of coordinates [A, B, C]').upper()
         if input == 'A':
-            start = [0.5, -1.5]
-            goal = [0.5, 1.5]
+            start = [0.55, -1.55]
+            goal = [0.55, 1.55]
         elif input == 'B':
-            start = [4.5, 3.5]
-            goal = [4.5, -1.5]
+            start = [4.55, 3.55]
+            goal = [4.55, -1.55]
         elif input == 'C':
-            start = [-0.5, 5.5]
-            goal = [1.5, -3.5]
-        a3(landmark_list, start, goal)
-    elif exercise == '5':
-        # Exercise 5: A* Search
-        input = raw_input('Select a set of coordinates [A, B, C]').upper()
-        if input == 'A':
-            start = [0.5, -1.5]
-            goal = [0.5, 1.5]
-        elif input == 'B':
-            start = [4.5, 3.5]
-            goal = [4.5, -1.5]
-        elif input == 'C':
-            start = [-0.5, 5.5]
-            goal = [1.5, -3.5]
+            start = [-0.55, 5.55]
+            goal = [1.55, -3.55]
+        if exercise == '3':
+            # Exercise 3: Naive Search
+            a3(landmark_list, start, goal)
+        elif exercise == '5':
+            # Exercise 5: Online Search
+            a5(landmark_list, start, goal)
+        elif exercise == '11':
+            grid_type = raw_input('Select Coarse or Fine Grid').upper()
+            if grid_type == 'COARSE':
+                grid_size = 1
+            elif grid_type == 'FINE':
+                grid_size = 0.1
+            a11(landmark_list, start, goal, grid_size)
 
-        a5(landmark_list, start, goal)
     elif exercise == '7':
         # Exerise 7: A* with small grid
         input = raw_input('Select a set of coordinates [A, B, C]').upper()
@@ -1244,7 +1111,8 @@ def main():
         elif algo == 'NAIVE':
             algo = False
         a7(landmark_list, start, goal, algo)
-    elif exercise == '9':
+
+    elif exercise == '9' or exercise == '10':
         input = raw_input('Select a set of coordinates [A, B, C]').upper()
         if input == 'A':
             start = [2.45, -3.55]
@@ -1255,19 +1123,12 @@ def main():
         elif input == 'C':
             start = [-0.55, 1.45]
             goal = [1.95, 3.95]
-        a9(landmark_list, start, goal)
-    elif exercise == '10':
-        input = raw_input('Select a set of coordinates [A, B, C]').upper()
-        if input == 'A':
-            start = [2.45, -3.55]
-            goal = [0.95, -1.55]
-        elif input == 'B':
-            start = [4.95, -0.05]
-            goal = [2.45, 0.25]
-        elif input == 'C':
-            start = [-0.55, 1.45]
-            goal = [1.95, 3.95]
-        a10(landmark_list, start, goal)
+        if exercise == '9':
+            # Exercise 9, robot motion post-plan
+            a9(landmark_list, start, goal)
+        elif exercise == '10':
+            # Exercise 10, robot motion with plan
+            a10(landmark_list, start, goal)
 
 
 if __name__ == "__main__":
