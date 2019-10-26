@@ -166,7 +166,7 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
         x_dist = abs(node1.position[0] - node2.position[0])
         y_dist = abs(node1.position[1] - node2.position[1])
         D1 = 1
-        D2 = np.sqrt(2)  # or use 1
+        D2 = 1  # np.sqrt(2)  # or use 1
         cost = D1 * (x_dist + y_dist) + (D2 - 2 * D1) * min(x_dist, y_dist)
         # cost = np.sqrt(x_dist**2 + y_dist**2)
         return cost
@@ -1033,12 +1033,12 @@ def a11(landmark_list, start, goal, grid_size):
     robot = Robot(thresh, path)
     i = 0
     while done is False:
-        print("iteration: {}".format(i))
+        # print("iteration: {}".format(i))
         i += 1
         # perform A* plan for current node
         waypoint = astar.plan_live(curr)
         path.append(waypoint)
-        print("waypoint: {}".format(waypoint))
+        # print("waypoint: {}".format(waypoint))
         # feed waypoint to robot instance
         # Move robot to next node
         bot_waypoints = robot.move_live(curr, waypoint)
@@ -1046,7 +1046,6 @@ def a11(landmark_list, start, goal, grid_size):
         curr = [bot_waypoints[-1][0], bot_waypoints[-1][1]]
         check = np.sqrt((curr[0] - goal[0])**2 +
                         (curr[1] - goal[1])**2)
-        print(check)
         if check < 0.07:
             done is True
             break
@@ -1101,14 +1100,14 @@ def main():
         input = raw_input('Select a set of coordinates [A, B, C]').upper()
         algo = raw_input('Use Online or Naive Algo?').upper()
         if input == 'A':
-            start = [0.5, -1.5]
-            goal = [0.5, 1.5]
+            start = [2.45, -3.55]
+            goal = [0.95, -1.55]
         elif input == 'B':
-            start = [4.5, 3.5]
-            goal = [4.5, -1.5]
+            start = [4.95, -0.05]
+            goal = [2.45, 0.25]
         elif input == 'C':
-            start = [-0.5, 5.5]
-            goal = [1.5, -3.5]
+            start = [-0.55, 1.45]
+            goal = [1.95, 3.95]
         if algo == 'ONLINE':
             algo = True
         elif algo == 'NAIVE':
