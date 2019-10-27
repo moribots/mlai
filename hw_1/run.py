@@ -450,7 +450,7 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
         # Make node position actual robot position
         curr = self.world2grid(curr)
         print("curr pos: {}".format(curr))
-        print("goal pos: {}".format(self.goal_node.position))
+        # print("goal pos: {}".format(self.goal_node.position))
         # Initialised as start for iteration 0
         self.current_node.position = curr
 
@@ -894,7 +894,7 @@ def plot_b(landmark_list, a_grid, path, bot_path):
 
     # Plot Heading Arrows
     for i in range(len(bot_path)):
-        if i % 100 == 0 or i == 0:
+        if i % 10 == 0 or i == 0:
             plt.arrow(bot_path[i][0],
                       bot_path[i][1],
                       0.1 * np.cos(bot_path[i][2]),
@@ -1002,10 +1002,15 @@ def a10(landmark_list, start, goal):
     i = 0
     while done is False:
         print("iteration: {}".format(i))
-        i += 1
         # perform A* plan for current node
         waypoint = astar.plan_live(curr)
         path.append(waypoint)
+        # Uncomment the two below lines to mess up waypoint
+        # and trigger re-plan condition
+        # Note this is calibrated for path B.
+        # if i == 10:
+        #     waypoint = [waypoint[0] + 0.1, waypoint[1] - 1.2]
+
         # feed waypoint to robot instance
         # Move robot to next node
         bot_waypoints = robot.move_live(curr, waypoint)
@@ -1013,6 +1018,7 @@ def a10(landmark_list, start, goal):
         curr = [bot_waypoints[-1][0], bot_waypoints[-1][1]]
         check = np.sqrt((curr[0] - goal[0])**2 +
                         (curr[1] - goal[1])**2)
+        i += 1
         if check < thresh:
             done is True
             break
@@ -1046,7 +1052,7 @@ def a11(landmark_list, start, goal, grid_size):
         curr = [bot_waypoints[-1][0], bot_waypoints[-1][1]]
         check = np.sqrt((curr[0] - goal[0])**2 +
                         (curr[1] - goal[1])**2)
-        if check < 0.07:
+        if check < 0.08:
             done is True
             break
 
