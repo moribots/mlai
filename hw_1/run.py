@@ -585,8 +585,8 @@ class Robot():
             u = [Kpv * dist, Kpw * bearing]
             u_w = u[1]
             u_v = u[0]
-            a_lin = u_v - self.u_v_prev / self.dt
-            a_th = u_w - self.u_w_prev / self.dt
+            a_lin = (u_v - self.u_v_prev) / self.dt
+            a_th = (u_w - self.u_w_prev) / self.dt
 
             if a_lin > self.max[0]:
                 u[0] = self.u_v_prev + self.max[0] * self.dt
