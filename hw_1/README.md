@@ -68,21 +68,21 @@ The same environment is navigated using the Naive A* for comparison purposes. At
 A Plot:
 
 Online:
-![7AO](media/Homework/7Ae.png)
+![7AO](media/PartA/7AOnline.png)
 Naive:
 ![7AN](media/PartA/7ANaive.png)
 
 B Plot:
 
 Online:
-![7BO](media/Homework/7B.png)
+![7BO](media/PartA/7BOnline.png)
 Naive:
 ![7BN](media/PartA/7BNaive.png)
 
 C Plot:
 
 Online:
-![7CO](media/Homework/7C.png)
+![7CO](media/PartA/7COnline.png)
 Naive:
 ![7CN](media/PartA/7CNaive.png)
 
