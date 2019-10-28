@@ -1009,7 +1009,7 @@ def a10(landmark_list, start, goal):
         # Uncomment the two below lines to mess up waypoint
         # and trigger re-plan condition
         # Note this is calibrated for path B.
-        # if i == 10:
+        # if i == 15:
         #     waypoint = [waypoint[0] + 0.1, waypoint[1] - 1.2]
 
         # feed waypoint to robot instance
