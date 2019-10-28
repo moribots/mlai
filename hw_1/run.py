@@ -166,7 +166,7 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
         x_dist = abs(node1.position[0] - node2.position[0])
         y_dist = abs(node1.position[1] - node2.position[1])
         D1 = 1
-        D2 = 1  # np.sqrt(2)  # or use 1
+        D2 = np.sqrt(2)  # or use 1 for better results with get_dist_n
         cost = D1 * (x_dist + y_dist) + (D2 - 2 * D1) * min(x_dist, y_dist)
         # cost = np.sqrt(x_dist**2 + y_dist**2)
         return cost
@@ -176,7 +176,8 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
         """
         x_dist = abs(node1.position[0] - node2.position[0])
         y_dist = abs(node1.position[1] - node2.position[1])
-        cost = np.sqrt(x_dist**2 + y_dist**2)
+        # cost = np.sqrt(x_dist**2 + y_dist**2)
+        cost = 1  # above cost is better, but this satisfies hw
         return cost
 
     def get_neighbours(self, node):
