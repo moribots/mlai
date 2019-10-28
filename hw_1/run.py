@@ -166,6 +166,7 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
         x_dist = abs(node1.position[0] - node2.position[0])
         y_dist = abs(node1.position[1] - node2.position[1])
         D1 = 1
+        # CHANGE THE VALUE BELOW FOR DIFFERENT RESULTS
         D2 = np.sqrt(2)  # or use 1 for better results with get_dist_n
         cost = D1 * (x_dist + y_dist) + (D2 - 2 * D1) * min(x_dist, y_dist)
         # cost = np.sqrt(x_dist**2 + y_dist**2)
@@ -176,8 +177,9 @@ class A_star():  # G COST IS ALWAYS 1 NO MATTER WHAT
         """
         x_dist = abs(node1.position[0] - node2.position[0])
         y_dist = abs(node1.position[1] - node2.position[1])
+        cost = 1  # below cost is better, but this satisfies hw
+        # UNCOMMENT LINE BELOW FOR DIFFERENT RESULTS
         # cost = np.sqrt(x_dist**2 + y_dist**2)
-        cost = 1  # above cost is better, but this satisfies hw
         return cost
 
     def get_neighbours(self, node):
@@ -512,7 +514,7 @@ class Robot():
         self.max = [0.288, 5.579]
         self.thresh = thresh
         self.noise = []
-        self.std = [0.1, 0.1]
+        self.std = [0.1, 0.1]  # std for Gaussian Noise
         self.dt = 0.1
         self.nodes = nodes
         self.path = []

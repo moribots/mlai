@@ -28,15 +28,15 @@ The Naive A* search is implemented here with a 1x1 grid. The path displayed here
 
 A Plot:
 
-![3A](media/3A.png)
+![3A](media/Homework/3A.png)
 
 B Plot:
 
-![3B](media/3B.png)
+![3B](media/Homework/3B.png)
 
 C Plot:
 
-![3C](media/3C.png)
+![3C](media/Homework/3C.png)
 
 ### Exercise 5:
 #### Operation:
@@ -46,15 +46,15 @@ The Online A* search is implemented here with a 1x1 grid. The path displayed her
 
 A Plot:
 
-![5A](media/5A.png)
+![5A](media/Homework/5A.png)
 
 B Plot:
 
-![5B](media/5B.png)
+![5B](media/Homework/5B.png)
 
 C Plot:
 
-![5C](media/5C.png)
+![5C](media/Homework/5C.png)
 
 
 ### Exercise 7: 
@@ -68,22 +68,22 @@ The same environment is navigated using the Naive A* for comparison purposes. At
 A Plot:
 
 Online:
-![7AO](media/7AOnline.png)
+![7AO](media/Homework/7Ae.png)
 Naive:
-![7AN](media/7ANaive.png)
+![7AN](media/PartA/7ANaive.png)
 
 B Plot:
 
 Online:
-![7BO](media/7BOnline.png)
+![7BO](media/Homework/7B.png)
 Naive:
-![7BN](media/7BNaive.png)
+![7BN](media/PartA/7BNaive.png)
 
 C Plot:
 
 Online:
-![7CO](media/7COnline.png)
+![7CO](media/Homework/7C.png)
 Naive:
-![7CN](media/7CNaive.png)
+![7CN](media/PartA/7CNaive.png)
 
 Note that in these screenshots, the path sometimes appear to intersect with an obstacle. If you zoom in after running the code, you will see that this is not actually the case. 
