@@ -1107,7 +1107,7 @@ def main():
     elif exercise == '7':
         # Exerise 7: A* with small grid
         input = raw_input('Select a set of coordinates [A, B, C]').upper()
-        algo = raw_input('Use Online or Naive Algo?').upper()
+        # algo = raw_input('Use Online or Naive Algo?').upper()
         if input == 'A':
             start = [2.45, -3.55]
             goal = [0.95, -1.55]
@@ -1117,10 +1117,11 @@ def main():
         elif input == 'C':
             start = [-0.55, 1.45]
             goal = [1.95, 3.95]
-        if algo == 'ONLINE':
-            algo = True
-        elif algo == 'NAIVE':
-            algo = False
+        # if algo == 'ONLINE':
+        #     algo = True
+        # elif algo == 'NAIVE':
+        #     algo = False
+        algo = True
         a7(landmark_list, start, goal, algo)
 
     elif exercise == '9' or exercise == '10':
