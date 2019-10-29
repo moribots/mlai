@@ -174,4 +174,97 @@ Coarse:
 
 ![11C](media/Homework/11B_Coarse.png)
 
-Note that in these screenshots, the path sometimes appear to intersect with an obstacle. If you zoom in after running the code, you will see that this is not actually the case. 
+### Better Plots:
+As mentioned in the report, the exercise requires a g(n) = 1 for traversing between adjacent nodes, whether the path is diagonal or straight. This limits the h(n) choice to the Octile distance function. Conversely, if g(n) = sqrt(2) is used for diagonal neighbour nodes, the Chebyshev h(n) can be used, which produces the following (shorter, and containing fewer turns) plots:
+
+3A Plot:
+
+![plot](media/Optimal/3A.png)
+
+3B Plot:
+
+![plot](media/Optimal/3B.png)
+
+3C Plot:
+
+![plot](media/Optimal/3C.png)
+
+5A Plot:
+
+![plot](media/Optimal/5A.png)
+
+5B Plot:
+
+![plot](media/Optimal/5B.png)
+
+5C Plot:
+
+![plot](media/Optimal/5C.png)
+
+7A Online Plot:
+
+![plot](media/Optimal/7_A_Online.png)
+
+7B Online Plot:
+
+![plot](media/Optimal/7_B_Online.png)
+
+7C Online Plot:
+
+![plot](media/Optimal/7_C_Online.png)
+
+9A Plot:
+
+![plot](media/Optimal/9A.png)
+
+9B Plot:
+
+![plot](media/Optimal/9B.png)
+
+9C Plot:
+
+![plot](media/Optimal/9C.png)
+
+10A Plot:
+
+![plot](media/Optimal/10A.png)
+
+10B Plot:
+
+![plot](media/Optimal/10B.png)
+
+10C Plot:
+
+![plot](media/Optimal/10C.png)
+
+11A Plot:
+
+Fine:
+
+[plot](media/Optimal/11A_Fine.png)
+
+Coarse:
+
+[plot](media/Optimal/11A_Coarse.png)
+
+11B Plot:
+
+Fine:
+
+[plot](media/Optimal/11B_Fine.png)
+
+Coarse:
+
+[plot](media/Optimal/11B_Coarse.png)
+
+11C Plot:
+
+Fine:
+
+[plot](media/Optimal/11C_Fine.png)
+
+Coarse:
+
+[plot](media/Optimal/11C_Coarse.png)
+
+As can be seen by these plots, the path traced by the online A* search using g(n) = sqrt(2) and the Chebyshev distance more closely matches the offline (naive) version than the paths produced in the official report.
