@@ -1070,7 +1070,7 @@ def main():
     """
     # Load Data from ds1 set using Pandas
     landmark_groundtruth = read_dat(
-        3, "ds1/ds1_Landmark_Groundtruth.dat",
+        3, "ds1_Landmark_Groundtruth.dat",
         ["Subject #", "x [m]", "y [m]", "x std-dev [m]", "y std-dev [m]"])
     landmark_list = []
     for l in range(len(landmark_groundtruth)):
