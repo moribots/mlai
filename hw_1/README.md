@@ -195,11 +195,11 @@ As mentioned in the report, the exercise requires a g(n) = 1 for traversing betw
 
 5B Plot:
 
-![plot](media/Optimal/5B.png)
+![plot](media/Optimal/3B.png)
 
 5C Plot:
 
-![plot](media/Optimal/5C.png)
+![plot](media/Optimal/3C.png)
 
 7A Online Plot:
 
@@ -207,11 +207,11 @@ As mentioned in the report, the exercise requires a g(n) = 1 for traversing betw
 
 7B Online Plot:
 
-![plot](media/Optimal/7_B_Online.png)
+![plot](media/Optimal/7B_Online.png)
 
 7C Online Plot:
 
-![plot](media/Optimal/7_C_Online.png)
+![plot](media/Optimal/7C_Online.png)
 
 9A Plot:
 
@@ -255,7 +255,7 @@ Fine:
 
 Coarse:
 
-[plot](media/Optimal/11B_Coarse.png)
+[plot](media/Optimal/11_B_Coarse.png)
 
 11C Plot:
 
@@ -265,6 +265,6 @@ Fine:
 
 Coarse:
 
-[plot](media/Optimal/11C_Coarse.png)
+[plot](media/Optimal/11_C_Coarse.png)
 
 As can be seen by these plots, the path traced by the online A* search using g(n) = sqrt(2) and the Chebyshev distance more closely matches the offline (naive) version than the paths produced in the official report.
