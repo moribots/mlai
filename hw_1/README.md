@@ -241,7 +241,7 @@ As mentioned in the report, the exercise requires a g(n) = 1 for traversing betw
 
 Fine:
 
-[plot](media/Optimal/11A_Fine.png)
+[plot1](media/Optimal/11A_Fine.png)
 
 Coarse:
 
@@ -251,20 +251,20 @@ Coarse:
 
 Fine:
 
-[plot](media/Optimal/11B_Fine.png)
+[plot2](media/Optimal/11B_Fine.png)
 
 Coarse:
 
-[plot](media/Optimal/11_B_Coarse.png)
+[plot3](media/Optimal/11_B_Coarse.png)
 
 11C Plot:
 
 Fine:
 
-[plot](media/Optimal/11C_Fine.png)
+[plot4](media/Optimal/11C_Fine.png)
 
 Coarse:
 
-[plot](media/Optimal/11_C_Coarse.png)
+[plot5](media/Optimal/11_C_Coarse.png)
 
 As can be seen by these plots, the path traced by the online A* search using g(n) = sqrt(2) and the Chebyshev distance more closely matches the offline (naive) version than the paths produced in the official report.
