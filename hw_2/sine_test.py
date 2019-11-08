@@ -19,9 +19,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def sine(cycles, points):
+def sine(cycles, points, var):
     T = 1  # period
-    y_var = 0.05  # variance
+    y_var = var  # variance
     x = []
     y = []
     for t in np.linspace(0, cycles * T, points):
@@ -33,34 +33,44 @@ def sine(cycles, points):
     return x, y
 
 
-def lwlr_pt(testPoint, xArr, yArr, k):
-    xMat = np.mat(xArr)
-    yMat = np.mat(yArr).T
-    # Create diagonal matrix
-    m = np.shape(xMat)[0]
+def lwlr_pt(x_q, xm, ym, k):
+    # convert to matrix
+    xM = np.mat(xm)
+    yM = np.mat(ym)
+    # diagonal matrix
+    m = np.shape(xM)[0]
     weights = np.mat(np.eye((m)))
-    # Populate weights with exponentially decaying values
-    for j in range(m):
-        diffMat = testPoint - xMat[j, :]
-        weights[j, j] = np.exp(diffMat * diffMat.T / (-2.0 * k**2))
+    # pop weights with exp decay vals
+    # using Gaussian Kernel
+    for i in range(m):
+        diffM = x_q - xM[i, :]
+        weights[i, i] = np.exp(diffM * diffM.T / (-2.0 * k**2))
 
-    # find extimate for testpoint
-    xTwx = xMat.T * (weights * xMat)
+    # find x_q
+    xTwx = xM.T * (weights * xM)
     # if np.linalg.det(xTwx) == 0.0:
     #     print("This matrix is singular, cannot do inverse")
     #     return
+    x_q = np.reshape(x_q, (-1, 1))
+    x_q = np.vstack((x_q, 1)).T
 
-    ws = xTwx.I * (xMat.T * (weights * yMat))
-    return testPoint * ws
+    ws = xTwx.I * (xM.T * (weights * yM))
+    return x_q * ws
 
 
-def lwlr(testArr, xArr, yArr, k):
-    m = np.shape(testArr)[0]
-    yHat = np.zeros(m)
-    # Replace each entry by its weight
+def lwlr(train, xm, ym, k):
+    """ Xarr: nx(m+1) (col of 1s at end)
+        Yarr: nxm or nx1 for singular
+        Beta: (n+1)xm
+        trainArr: (n+1)xm (row of 1 at end)
+    """
+    m = np.shape(train)[0]
+    y_hat = np.zeros(m)
     for i in range(m):
-        yHat[i] = lwlr_pt(testArr[i], xArr, yArr, k)
-    return yHat
+        y_hat[i] = lwlr_pt(train[i], xm, ym, k)
+        # ws.append(y_hat[i] / trainArr[i])
+        print("Completed {} of {}".format(i, m))
+    return y_hat
 
 
 def plot(x, y, yhat):
@@ -76,15 +86,30 @@ def plot(x, y, yhat):
 
 
 def main():
-    x, y = sine(2, 500)
+    x, y = sine(2, 500, 0.05)
+    x2, y2 = sine(2, 500, 0)
+    # Reshaping below for matrix inv
     # convert into arrays
-    x = np.array(x)
-    y = np.array(y)
-    y = y.flatten()
+    xm = np.array(x)
+    ym = np.array(y)
+    ym = ym.flatten()
+    # -1 indicates use input dimension
+    ym = np.reshape(ym, (-1, 1))
 
+    # train = np.append(x, 1)
+    train = x
+    train = np.reshape(train, (-1, 1))
+
+    # -1 indicates use input dimension
+    xm = np.reshape(xm, (-1, 1))
+    ones_app = np.ones((np.shape(xm)[0], 1))
+    xm = np.hstack((xm, ones_app))
+    ym = ym
+
+    k = 0.05
     # perform LWLR
-    k = 0.1
-    yhat = lwlr(x[:250], x[251:], y[251:], k)
+    yhat = lwlr(train, xm, ym, k)
+
     plot(x, y, yhat)
 
 
