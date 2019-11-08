@@ -73,7 +73,7 @@ def parse_dat(odometry, ground_truth):
 
 
 def get_gtr(odometry, ground_truth):
-    """ Plot error in delta_gt vs delta_gt_dreck
+    """ compute deadreckoning difference
     """
     fwd_gt = [ground_truth[0]]
     odom = DataFrame(odometry)
@@ -127,6 +127,8 @@ def viz_data(fwd_gt, gt):
 
 
 def plot(odom, diff_dmag, diff_head):
+    """ Plot error in delta_gt vs delta_gt_dreck
+    """
 
     # First turn odom into array
     odom = np.array(odom)
@@ -147,8 +149,8 @@ def plot(odom, diff_dmag, diff_head):
     plt.figure(2)
     plt.autoscale(enable=True, axis='both', tight=None)
     plt.title('Distance error for w commands')
-    plt.ylabel('dmag [m]')
-    plt.xlabel('w [m/s]')
+    plt.ylabel('hdiff [rad]')
+    plt.xlabel('w [rad/s]')
     plt.scatter(odom[:, 2], diff_dmag)
 
     # Initialize Plot hmagv
@@ -163,8 +165,8 @@ def plot(odom, diff_dmag, diff_head):
     plt.figure(4)
     plt.autoscale(enable=True, axis='both', tight=None)
     plt.title('Heading error for w commands')
-    plt.ylabel('dmag [m]')
-    plt.xlabel('w [m/s]')
+    plt.ylabel('hdiff [rad]')
+    plt.xlabel('w [rad/s]')
     plt.scatter(odom[:, 2], diff_head)
 
     plt.show()
