@@ -58,36 +58,36 @@ def lwlr_pt(x_q, xm, ym, k):
     return x_q * ws
 
 
-def lwlr(train, xm, ym, k):
+def lwlr(test, xm, ym, k):
     """ Xarr: nx(m+1) (col of 1s at end)
         Yarr: nxm or nx1 for singular
         Beta: (n+1)xm
-        trainArr: (n+1)xm (row of 1 at end)
+        testArr: (n+1)xm (row of 1 at end)
     """
-    m = np.shape(train)[0]
+    m = np.shape(test)[0]
     y_hat = np.zeros(m)
     for i in range(m):
-        y_hat[i] = lwlr_pt(train[i], xm, ym, k)
-        # ws.append(y_hat[i] / trainArr[i])
+        y_hat[i] = lwlr_pt(test[i], xm, ym, k)
+        # ws.append(y_hat[i] / testArr[i])
         print("Completed {} of {}".format(i, m))
     return y_hat
 
 
-def plot(x, y, yhat):
+def plot(x, y, xt, yhat):
     # Sine Plot
     plt.autoscale(enable=True, axis='both', tight=None)
     plt.title('Noisy Sine Wave')
     plt.ylabel('y')
     plt.xlabel('x')
-    plt.scatter(x, y)
-    plt.scatter(x, yhat, color='r')
+    plt.scatter(x, y, color='b')
+    plt.scatter(xt, yhat, color='r')
 
     plt.show()
 
 
 def main():
-    x, y = sine(2, 500, 0.05)
-    x2, y2 = sine(2, 500, 0)
+    x, y = sine(2, 100, 0.05)
+    x2, y2 = sine(2, 200, 0.05)
     # Reshaping below for matrix inv
     # convert into arrays
     xm = np.array(x)
@@ -96,9 +96,9 @@ def main():
     # -1 indicates use input dimension
     ym = np.reshape(ym, (-1, 1))
 
-    # train = np.append(x, 1)
-    train = x
-    train = np.reshape(train, (-1, 1))
+    # test = np.append(x, 1)
+    test = x2
+    test = np.reshape(test, (-1, 1))
 
     # -1 indicates use input dimension
     xm = np.reshape(xm, (-1, 1))
@@ -108,9 +108,9 @@ def main():
 
     k = 0.05
     # perform LWLR
-    yhat = lwlr(train, xm, ym, k)
+    yhat = lwlr(test, xm, ym, k)
 
-    plot(x, y, yhat)
+    plot(x, y, x2, yhat)
 
 
 if __name__ == "__main__":

@@ -46,11 +46,6 @@ def parse_dat(odometry, ground_truth):
     for t in range(len(ground_truth) - 1):
         odom.count = 0
         for o in range(odom.start, len(odometry)):
-            # DEBUG
-            # if t < 10:
-            #     print("DEBUG")
-            #     print("Odometry time: {:.10f}".format(odometry[o][0]))
-            #     print("GT time: {:.10f} \n".format(ground_truth[t][0]))
 
             if odometry[o][0] >= ground_truth[t][0] and odometry[o][
                     0] < ground_truth[t + 1][0]:
@@ -59,11 +54,6 @@ def parse_dat(odometry, ground_truth):
                 odom.start = o
                 break
         if odom.count == 1:
-            # DEBUG
-            # if t < 10:
-            #     print("TRUE")
-            #     print("Odometry time: {:.10f}".format(odometry[o - 1][0]))
-            #     print("GT time: {:.10f} \n".format(ground_truth[t][0]))
             new_odom.append(odometry[o - 1])
             new_gt.append(ground_truth[t])
 
@@ -81,7 +71,8 @@ def get_gtr(odometry, ground_truth):
         for o in range(odom.start, len(odometry)):
             if odometry[o][0] >= ground_truth[
                     t - 1][0] and odometry[o][0] < ground_truth[t][0]:
-                timestep = ground_truth[t][0] - odometry[o][0]
+                # timestep = ground_truth[t][0] - odometry[o][0]
+                timestep = ground_truth[t][0] - ground_truth[t - 1][0]
                 fwd = fwd_prop(ground_truth[t - 1], odometry[o], timestep)
                 fwd_gt.append(fwd)
                 odom.start = o + 1  # try o
