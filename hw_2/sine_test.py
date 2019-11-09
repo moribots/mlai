@@ -47,14 +47,12 @@ def lwlr_pt(x_q, xm, ym, k):
         weights[i, i] = np.exp(diffM * diffM.T / (-2.0 * k**2))
 
     # find x_q
-    xTwx = xM.T * (weights * xM)
-    # if np.linalg.det(xTwx) == 0.0:
-    #     print("This matrix is singular, cannot do inverse")
-    #     return
+    xTwx = xM.T * weights * xM
+    # reshape x_q and append 1
     x_q = np.reshape(x_q, (-1, 1))
     x_q = np.vstack((x_q, 1)).T
 
-    ws = xTwx.I * (xM.T * (weights * yM))
+    ws = xTwx.I * xM.T * weights * yM
     return x_q * ws
 
 
@@ -67,6 +65,7 @@ def lwlr(test, xm, ym, k):
     m = np.shape(test)[0]
     y_hat = np.zeros(m)
     for i in range(m):
+        # find Beta and hence y_hat for every x_q (test[i])
         y_hat[i] = lwlr_pt(test[i], xm, ym, k)
         # ws.append(y_hat[i] / testArr[i])
         print("Completed {} of {}".format(i, m))
@@ -86,8 +85,8 @@ def plot(x, y, xt, yhat):
 
 
 def main():
-    x, y = sine(2, 100, 0.05)
-    x2, y2 = sine(2, 200, 0.05)
+    x, y = sine(2, 200, 0.05)
+    x_test = np.linspace(0.1, 2, 300)
     # Reshaping below for matrix inv
     # convert into arrays
     xm = np.array(x)
@@ -97,7 +96,7 @@ def main():
     ym = np.reshape(ym, (-1, 1))
 
     # test = np.append(x, 1)
-    test = x2
+    test = x_test
     test = np.reshape(test, (-1, 1))
 
     # -1 indicates use input dimension
@@ -110,7 +109,7 @@ def main():
     # perform LWLR
     yhat = lwlr(test, xm, ym, k)
 
-    plot(x, y, x2, yhat)
+    plot(x, y, x_test, yhat)
 
 
 if __name__ == "__main__":

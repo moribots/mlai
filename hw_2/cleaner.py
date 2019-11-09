@@ -102,7 +102,7 @@ def viz_data(fwd_gt, gt):
 
     # # now calculate distance magnitude for each set
     # dmag_fgt = np.sqrt(np.square(fwd_gt[:,1]) + np.square(fwd_gt[:,2]))
-    # dmag_gt = np.sqrt(np.square(gt[:,1]) + np.square(gt[:,2]))
+    dmag_gt = np.sqrt(np.square(gt[:, 1]) + np.square(gt[:, 2]))
 
     # now calculate x difference
     x_diff = fwd_gt[:, 1] - gt[:, 1]
@@ -112,12 +112,12 @@ def viz_data(fwd_gt, gt):
     diff_dmag = np.sqrt(np.square(x_diff) + np.square(y_diff))
 
     # now calculate heading difference for each set
-    diff_head = abs(fwd_gt[:, 3] - gt[:, 3])
+    diff_head = fwd_gt[:, 3] - gt[:, 3]
 
-    return diff_dmag, diff_head
+    return diff_dmag, diff_head, dmag_gt
 
 
-def plot(odom, diff_dmag, diff_head):
+def plot(odom, diff_dmag, diff_head, dmag_gt):
     """ Plot error in delta_gt vs delta_gt_dreck
     """
 
@@ -127,6 +127,7 @@ def plot(odom, diff_dmag, diff_head):
     # remove first datapoint from diff_dmag and diff_head
     diff_dmag = np.delete(diff_dmag, (0), axis=0)
     diff_head = np.delete(diff_head, (0), axis=0)
+    dmag_gt = np.delete(dmag_gt, (0), axis=0)
 
     # Initialize Plot dmagv
     plt.figure(1)
@@ -159,6 +160,14 @@ def plot(odom, diff_dmag, diff_head):
     plt.ylabel('hdiff [rad]')
     plt.xlabel('w [rad/s]')
     plt.scatter(odom[:, 2], diff_head)
+
+    # Initialize Plot dmag_gt
+    plt.figure(5)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('fig')
+    plt.ylabel('[m]')
+    plt.xlabel('v [m/s]')
+    plt.scatter(odom[:, 1], dmag_gt)
 
     plt.show()
 
@@ -198,10 +207,10 @@ def main():
     fwd_gt = get_gtr(odom, gt)
 
     # compute error in dead reckoning set
-    diff_dmag, diff_head = viz_data(fwd_gt, gt)
+    diff_dmag, diff_head, dmag_gt = viz_data(fwd_gt, gt)
 
     # plot errors
-    plot(odom, diff_dmag, diff_head)
+    plot(odom, diff_dmag, diff_head, dmag_gt)
 
     # Create CSV File
     with open("odom_train.csv", "w+") as my_csv:
