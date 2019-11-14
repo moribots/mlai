@@ -39,35 +39,34 @@ def lwlr_pt(x_q, xm, ym, k):
     yM = np.mat(ym)
     # diagonal matrix
     m = np.shape(xM)[0]
-    weights = np.mat(np.eye((m)))
-    # pop weights with exp decay vals
-    # using Gaussian Kernel
+    w = np.mat(np.eye((m)))
+    # fill weights using Gaussian Kernel
     for i in range(m):
         diffM = x_q - xM[i, :]
-        weights[i, i] = np.exp(diffM * diffM.T / (-2.0 * k**2))
+        w[i, i] = np.exp(diffM * diffM.T / (-2.0 * k**2))
 
-    # find x_q
-    xTwx = xM.T * weights * xM
     # reshape x_q and append 1
     x_q = np.reshape(x_q, (-1, 1))
     x_q = np.vstack((x_q, 1)).T
 
-    ws = xTwx.I * xM.T * weights * yM
-    return x_q * ws
+    # Find Beta
+    xTwx = xM.T * w * xM
+    B = xTwx.I * xM.T * w * yM
+    # find and return x_q
+    return x_q * B
 
 
 def lwlr(test, xm, ym, k):
-    """ Xarr: nx(m+1) (col of 1s at end)
-        Yarr: nxm or nx1 for singular
+    """ xm: nx(m+1) (col of 1s at end)
+        ym: nxm or nx1 for singular
         Beta: (n+1)xm
-        testArr: (n+1)xm (row of 1 at end)
+        test: (n+1)xm (row of 1 at end)
     """
     m = np.shape(test)[0]
     y_hat = np.zeros(m)
     for i in range(m):
         # find Beta and hence y_hat for every x_q (test[i])
         y_hat[i] = lwlr_pt(test[i], xm, ym, k)
-        # ws.append(y_hat[i] / testArr[i])
         print("Completed {} of {}".format(i, m))
     return y_hat
 
