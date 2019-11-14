@@ -19,17 +19,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def sine(cycles, points, var):
+def sine(cycles, pts, var):
     T = 1  # period
     y_var = var  # variance
     x = []
     y = []
-    for t in np.linspace(0, cycles * T, points):
-        x_pt = t
-        x.append(x_pt)
+    for t in np.linspace(0, cycles * T, pts):
         y_pt = np.sin((2 * np.pi * t) / T) + y_var * np.random.randn(1)
         y.append(y_pt)
-
+        x.append(t)
     return x, y
 
 
