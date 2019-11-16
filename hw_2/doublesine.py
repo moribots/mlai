@@ -100,10 +100,10 @@ def plot(x, y, xt, yhat):
 
 
 def main():
-    x, y = sine(2, 200, 0.05)
-    x2, y2 = sine(2, 200, 0.05)
-    x_test = np.linspace(0, 2, 200)
-    x2_test = np.linspace(0, 2, 200)
+    x, y = sine(2, 300, 0.05)
+    x2, y2 = sine(2, 300, 0.05)
+    x_test = np.linspace(0.1, 2, 200)
+    x2_test = np.linspace(0.2, 2, 200)
     # Reshaping below for matrix inv
     # convert into arrays
     xm = np.array(x)
@@ -139,7 +139,7 @@ def main():
     test = np.hstack((test, ones_col))
     ym = ym
 
-    k = 0.03
+    k = 0.05
     # perform LWLR
     yhat = lwlr(test, xm, ym, k)
 
