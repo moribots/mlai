@@ -16,6 +16,7 @@ mauricerahme2020@u.northwestern.edu
 """
 from __future__ import division
 import numpy as np
+from random import seed, randrange
 import matplotlib.pyplot as plt
 
 
@@ -73,6 +74,104 @@ def lwlr(test, xm, ym, k):
         y_hat[i] = lwlr_pt(test[i], xm, ym, k)
         print("Completed {} of {}".format(i, m))
     return y_hat
+
+
+def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt):
+
+    # First turn odom into array
+    odom_train = np.array(odom_train)
+    odom_dt = np.array(odom_dt)
+
+    # remove first datapoint
+    dmag_gt = np.delete(dmag_gt, (0), axis=0)
+    dmag_x = np.delete(dmag_x, (0), axis=0)
+    dmag_y = np.delete(dmag_y, (0), axis=0)
+    dmag_h = np.delete(dmag_h, (0), axis=0)
+
+    # Extract commands (independent vars)
+    v = odom_train[:, 1]
+    w = odom_train[:, 2]
+
+    vdt = odom_dt[:, 1]
+    wdt = odom_dt[:, 2]
+
+    # Reshape
+    v = np.reshape(v, (-1, 1))
+    vdt = np.reshape(vdt, (-1, 1))
+
+    w = np.reshape(w, (-1, 1))
+    wdt = np.reshape(wdt, (-1, 1))
+
+    dmag_gt = np.reshape(dmag_gt, (-1, 1))
+    dmag_x = np.reshape(dmag_gt, (-1, 1))
+    dmag_y = np.reshape(dmag_gt, (-1, 1))
+    dmag_h = np.reshape(dmag_gt, (-1, 1))
+
+    # Now create xm (input matrix)
+    xm = np.hstack((v, w))
+    xmdt = np.hstack((vdt, wdt))
+
+    # Now create ym (output matrix)
+    ymabs = np.hstack((dmag_gt, dmag_h))
+    ymcart = np.hstack((dmag_x, dmag_y, dmag_h))
+
+    # TODO:
+    # Add test input here, for now use train
+
+    # Add ones col at end of inputs
+    ones_col = np.ones((np.shape(xm)[0], 1))
+    ones_coldt = np.ones((np.shape(xmdt)[0], 1))
+    xm = np.hstack((xm, ones_col))
+    xmdt = np.hstack((xmdt, ones_coldt))
+
+    # Now limit to number of points (lest lwlr take too long)
+    num = 1000
+    xm = xm[:num, :]
+    xmdt = xmdt[:num, :]
+    ymabs = ymabs[:num, :]
+    ymcart = ymcart[:num, :]
+
+    return xm, xmdt, ymabs, ymcart
+
+
+def train_test_split(dataset, split=0.60):
+    train = np.empty((1, len(dataset[0])))
+    train_size = split * len(dataset)
+    test = dataset
+    i = 0
+    while len(train) < train_size:
+        index = randrange(len(test))
+        if i == 0:
+            train = test[index, :]
+            test = np.delete(test, index, axis=0)
+        else:
+            train = np.vstack((train, test[index, :]))
+            test = np.delete(test, index, axis=0)
+        i += 1
+    return train, test
+
+
+def cross_validation_split(dataset, folds=10):
+    dataset_split = np.empty((1, len(dataset[0])))
+    test = dataset
+    fold_size = int(len(dataset) / folds)
+    for i in range(folds):
+        fold = np.empty((1, len(dataset[0])))
+        j = 0
+        while len(fold) < fold_size:
+            index = randrange(len(test))
+            if j == 0:
+                fold = test[index, :]
+                test = np.delete(test, index, axis=0)
+            else:
+                fold = np.vstack((fold, test[index, :]))
+                test = np.delete(test, index, axis=0)
+            j += 1
+        if i == 0:
+            dataset_split = fold
+        else:
+            dataset_split = np.vstack((dataset_split, fold))
+    return dataset_split
 
 
 def viz_data(gt_dead, gt_train, odom_train):
@@ -208,64 +307,6 @@ def plot(x, y, xt, yhat):
 
     plt.show()
 
-
-def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt):
-
-    # First turn odom into array
-    odom_train = np.array(odom_train)
-    odom_dt = np.array(odom_dt)
-
-    # remove first datapoint
-    dmag_gt = np.delete(dmag_gt, (0), axis=0)
-    dmag_x = np.delete(dmag_x, (0), axis=0)
-    dmag_y = np.delete(dmag_y, (0), axis=0)
-    dmag_h = np.delete(dmag_h, (0), axis=0)
-
-    # Extract commands (independent vars)
-    v = odom_train[:, 1]
-    w = odom_train[:, 2]
-
-    vdt = odom_dt[:, 1]
-    wdt = odom_dt[:, 2]
-
-    # Reshape
-    v = np.reshape(v, (-1, 1))
-    vdt = np.reshape(vdt, (-1, 1))
-
-    w = np.reshape(w, (-1, 1))
-    wdt = np.reshape(wdt, (-1, 1))
-
-    dmag_gt = np.reshape(dmag_gt, (-1, 1))
-    dmag_x = np.reshape(dmag_gt, (-1, 1))
-    dmag_y = np.reshape(dmag_gt, (-1, 1))
-    dmag_h = np.reshape(dmag_gt, (-1, 1))
-
-    # Now create xm (input matrix)
-    xm = np.hstack((v, w))
-    xmdt = np.hstack((vdt, wdt))
-
-    # Now create ym (output matrix)
-    ymabs = np.hstack((dmag_gt, dmag_h))
-    ymcart = np.hstack((dmag_x, dmag_y, dmag_h))
-
-    # TODO:
-    # Add test input here, for now use train
-
-    # Add ones col at end of inputs
-    ones_col = np.ones((np.shape(xm)[0], 1))
-    ones_coldt = np.ones((np.shape(xmdt)[0], 1))
-    xm = np.hstack((xm, ones_col))
-    xmdt = np.hstack((xmdt, ones_coldt))
-
-    # Now limit to number of points (lest lwlr take too long)
-    num = 1000
-    xm = xm[:num, :]
-    xmdt = xmdt[:num, :]
-    ymabs = ymabs[:num, :]
-    ymcart = ymcart[:num, :]
-
-    return xm, xmdt, ymabs, ymcart
-
 def main():
     gt_train = np.loadtxt(open("gt_train.csv"), delimiter=",")
     gt_dead = np.loadtxt(open("gt_deadreck.csv"), delimiter=",")
@@ -278,6 +319,17 @@ def main():
     # plot_viz(odom_train, diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt)
 
     xm, xmdt, ymabs, ymcart = setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt)
+
+    dataset1 = np.hstack((xm, ymabs))
+    dataset2 = np.hstack((xm, ymcart))
+
+    dataset3 = np.hstack((xmdt, ymabs))
+    dataset4 = np.hstack((xmdt, ymcart))
+
+    train, test = train_test_split(dataset1, 0.60)
+
+    print(np.shape(train))
+    print(np.shape(test))
 
     k = 0.03
     # perform LWLR
