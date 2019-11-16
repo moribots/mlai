@@ -32,6 +32,7 @@ def sine(cycles, pts, var):
 
 
 def lwlr_pt(x_q, xm, ym, k):
+
     # convert to matrix
     xM = np.mat(xm)
     yM = np.mat(ym)
@@ -41,17 +42,28 @@ def lwlr_pt(x_q, xm, ym, k):
     # fill weights using Gaussian Kernel
     for i in range(m):
         diffM = x_q - xM[i, :]
-        # print(np.shape(x_q))
-        print(diffM)
+        # print(x_q)
+        # print(xM[i, :])
+        # print(diffM)
+        # print("\n")
         w[i, i] = np.exp(diffM * diffM.T / (-2.0 * k**2))
-
-    # reshape x_q and append 1
-    x_q = np.reshape(x_q, (-1, 1))
-    x_q = np.vstack((x_q, 1)).T
 
     # Find Beta
     xTwx = xM.T * w * xM
-    B = xTwx.I * xM.T * w * yM
+    # Try for inverse case
+    try:
+        # inverse
+        inv = np.linalg.inv(xTwx)
+    except:
+        # pseudoinverse
+        print('pinv')
+        inv = np.linalg.pinv(xTwx)
+
+    B = inv * xM.T * w * yM
+    # print(B)
+    # print(x_q)
+
+    # print(x_q * B)
     # find and return x_q
     return x_q * B
 
@@ -63,7 +75,11 @@ def lwlr(test, xm, ym, k):
         test: (n+1)xm (row of 1 at end)
     """
     m = np.shape(test)[0]
-    y_hat = np.zeros(m)
+    y_hat = np.zeros((m, 2))
+    # print(y_hat[0, 0])
+
+    # print(test[0])
+
     for i in range(m):
         # find Beta and hence y_hat for every x_q (test[i])
         y_hat[i] = lwlr_pt(test[i], xm, ym, k)
@@ -85,30 +101,54 @@ def plot(x, y, xt, yhat):
 
 def main():
     x, y = sine(2, 200, 0.05)
-    x_test = np.linspace(0.1, 2, 300)
+    x2, y2 = sine(2, 200, 0.05)
+    x_test = np.linspace(0, 2, 200)
+    x2_test = np.linspace(0, 2, 200)
     # Reshaping below for matrix inv
     # convert into arrays
     xm = np.array(x)
     ym = np.array(y)
     ym = ym.flatten()
+    x2m = np.array(x2)
+    y2m = np.array(y2)
+    y2m = y2m.flatten()
     # -1 indicates use input dimension
+    xm = np.reshape(xm, (-1, 1))
+    x2m = np.reshape(x2m, (-1, 1))
     ym = np.reshape(ym, (-1, 1))
+    y2m = np.reshape(y2m, (-1, 1))
+
+    # append 2nd col for 2nd sine
+    xm = np.hstack((xm, x2m))
+    ym = np.hstack((ym, y2m))
 
     # test = np.append(x, 1)
     test = x_test
     test = np.reshape(test, (-1, 1))
+    x2_test = np.reshape(x2_test, (-1, 1))
+    test = np.hstack((test, x2_test))
+    test1 = test
+    # print(np.shape(test))
 
-    # -1 indicates use input dimension
-    xm = np.reshape(xm, (-1, 1))
-    ones_app = np.ones((np.shape(xm)[0], 1))
-    xm = np.hstack((xm, ones_app))
+    # ones_row = np.ones((1, np.shape(test)[1]))
+    # test = np.vstack((test, ones_row))
+
+    ones_col = np.ones((np.shape(xm)[0], 1))
+    xm = np.hstack((xm, ones_col))
+    ones_col = np.ones((np.shape(test)[0], 1))
+    test = np.hstack((test, ones_col))
     ym = ym
 
-    k = 0.05
+    k = 0.03
     # perform LWLR
     yhat = lwlr(test, xm, ym, k)
 
-    plot(x, y, x_test, yhat)
+    yhat1, yhat2 = np.hsplit(yhat, 2)
+    test2, test3 = np.hsplit(test1, 2)
+
+    print(np.shape(yhat1))
+
+    plot(x, y, test1, yhat)
 
 
 if __name__ == "__main__":
