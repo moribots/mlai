@@ -134,7 +134,7 @@ def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt, odom_test):
     ymcart = ymcart[:num, :]
 
     # Use first few samples from test data
-    xmtest = xmtest[:5000, :]
+    xmtest = xmtest[:6000, :]
 
     return xm, xmdt, ymabs, ymcart, xmtest
 
@@ -286,7 +286,7 @@ def main():
     # print(np.shape(train))
     # print(np.shape(test))
 
-    k = 0.00008
+    k = 0.000095
     # perform LWLR
     yhat = lwlr(xmtest, xmdt, ymabs, k)
 
@@ -316,7 +316,7 @@ def main():
     plt.xlabel('x [m]')
 
     # Set range for desired final iteration
-    inc_range = 5000
+    inc_range = 6000
     # Plot lwlr
     path_x = [px[0] for px in path]
     path_y = [py[1] for py in path]
