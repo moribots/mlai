@@ -36,8 +36,11 @@ def lwlr_pt(x_q, xm, ym, k):
     for i in range(m):
         # diffM = x_q - xM[i, :]
         diffM = xM[i, :] - x_q
+        dh = np.divide(np.dot(diffM.T, diffM), k)
+        kernel = np.exp(-np.dot(dh, dh.T))
+        w[i, i] = np.sqrt(kernel)
         # print(diffM)
-        w[i, i] = np.exp(np.dot(diffM, diffM.T) / (-2.0 * k**2))
+        # w[i, i] = np.exp(np.dot(diffM, diffM.T) / (-2.0 * k**2))
         # w[i, i] = np.sqrt(np.dot(diffM.T, diffM)) / k
 
     # Find Beta
@@ -124,14 +127,14 @@ def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt, odom_test):
     xmtest = np.hstack((xmtest, ones_coltest))
 
     # Now limit to number of points (lest lwlr take too long)
-    num = 1000
+    num = 500
     xm = xm[:num, :]
     xmdt = xmdt[:num, :]
     ymabs = ymabs[:num, :]
     ymcart = ymcart[:num, :]
 
     # Use first few samples from test data
-    xmtest = xmtest[:938, :]
+    xmtest = xmtest[:5000, :]
 
     return xm, xmdt, ymabs, ymcart, xmtest
 
@@ -283,7 +286,7 @@ def main():
     # print(np.shape(train))
     # print(np.shape(test))
 
-    k = 0.01
+    k = 0.00008
     # perform LWLR
     yhat = lwlr(xmtest, xmdt, ymabs, k)
 
@@ -313,7 +316,7 @@ def main():
     plt.xlabel('x [m]')
 
     # Set range for desired final iteration
-    inc_range = 500
+    inc_range = 5000
     # Plot lwlr
     path_x = [px[0] for px in path]
     path_y = [py[1] for py in path]
