@@ -17,6 +17,8 @@ mauricerahme2020@u.northwestern.edu
 from __future__ import division
 import numpy as np
 from random import seed, randrange
+import csv
+import pandas as pd
 import matplotlib.pyplot as plt
 
 
@@ -76,11 +78,12 @@ def lwlr(test, xm, ym, k):
     return y_hat
 
 
-def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt):
+def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt, odom_test):
 
     # First turn odom into array
     odom_train = np.array(odom_train)
     odom_dt = np.array(odom_dt)
+    odom_test = np.array(odom_test)
 
     # remove first datapoint
     dmag_gt = np.delete(dmag_gt, (0), axis=0)
@@ -95,12 +98,17 @@ def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt):
     vdt = odom_dt[:, 1]
     wdt = odom_dt[:, 2]
 
+    vtest = odom_test[:, 1]
+    wtest = odom_test[:, 2]
+
     # Reshape
     v = np.reshape(v, (-1, 1))
     vdt = np.reshape(vdt, (-1, 1))
+    vtest = np.reshape(vtest, (-1, 1))
 
     w = np.reshape(w, (-1, 1))
     wdt = np.reshape(wdt, (-1, 1))
+    wtest = np.reshape(wtest, (-1, 1))
 
     dmag_gt = np.reshape(dmag_gt, (-1, 1))
     dmag_x = np.reshape(dmag_gt, (-1, 1))
@@ -110,6 +118,7 @@ def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt):
     # Now create xm (input matrix)
     xm = np.hstack((v, w))
     xmdt = np.hstack((vdt, wdt))
+    xmtest = np.hstack((vtest, wtest))
 
     # Now create ym (output matrix)
     ymabs = np.hstack((dmag_gt, dmag_h))
@@ -121,8 +130,10 @@ def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt):
     # Add ones col at end of inputs
     ones_col = np.ones((np.shape(xm)[0], 1))
     ones_coldt = np.ones((np.shape(xmdt)[0], 1))
+    ones_coltest = np.ones((np.shape(xmtest)[0], 1))
     xm = np.hstack((xm, ones_col))
     xmdt = np.hstack((xmdt, ones_coldt))
+    xmtest = np.hstack((xmtest, ones_coltest))
 
     # Now limit to number of points (lest lwlr take too long)
     num = 1000
@@ -131,7 +142,10 @@ def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt):
     ymabs = ymabs[:num, :]
     ymcart = ymcart[:num, :]
 
-    return xm, xmdt, ymabs, ymcart
+    # Use first few samples from test data
+    xmtest = xmtest[:1000, :]
+
+    return xm, xmdt, ymabs, ymcart, xmtest
 
 
 def train_test_split(dataset, split=0.60):
@@ -174,7 +188,7 @@ def cross_validation_split(dataset, folds=10):
     return dataset_split
 
 
-def viz_data(gt_dead, gt_train, odom_train):
+def viz_data(gt_dead, gt_train, odom_train, odom_test, ground_truth):
     """ Plot error in data
 
 
@@ -186,6 +200,8 @@ def viz_data(gt_dead, gt_train, odom_train):
         also assuming no prior controls and that controls
         extend to next gt_train
     """
+    # Get odom_test * dt
+
     # start by turning data into 2D array
     gt_dead = np.array(gt_dead)
     gt_train = np.array(gt_train)
@@ -195,6 +211,9 @@ def viz_data(gt_dead, gt_train, odom_train):
 
     for i in range(n - 1):
         odom_dt[i, 1:] = odom_dt[i, 1:] * (gt_train[i + 1, 0] - gt_train[i, 0])
+
+    for g in range(len(gt_train) - 1):
+        gt_train[g, :] = gt_train[g + 1, :] - gt_train[g, :]
 
     dmag_x = gt_train[:, 1]
     dmag_y = gt_train[:, 2]
@@ -211,10 +230,11 @@ def viz_data(gt_dead, gt_train, odom_train):
     # now calculate heading difference for each set
     diff_head = gt_dead[:, 3] - dmag_h
 
-    return diff_dmag, diff_head, dmag_gt_train, dmag_x, dmag_y, dmag_h, odom_dt
+    return diff_dmag, diff_head, dmag_gt_train, dmag_x, dmag_y, dmag_h, odom_dt, odom_test
 
 
-def plot_viz(odom, diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt):
+def plot_viz(odom, diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h,
+             odom_dt):
     """
     """
 
@@ -307,33 +327,150 @@ def plot(x, y, xt, yhat):
 
     plt.show()
 
+
+# Read .dat Files using Pandas
+def read_dat(start_index, file_path, usecols):
+    # Read Data using Pandas
+    data_str = pd.read_table(file_path,
+                             sep="\s+",
+                             skiprows=1,
+                             usecols=usecols,
+                             names=usecols)
+    # Format Data into List
+    data_str = data_str.values.tolist()
+
+    # Useful data starts on start_index, preceeded by headings
+    # Turn string data into floats, 64bit accuracy
+    data = []
+    for i in range(start_index, len(data_str)):
+        data.append(np.array(data_str[i], dtype=np.float64))
+
+    return data
+
+
+def move(yhat, path):
+    x = path[0] + yhat[0] * np.cos(path[2])
+    y = path[1] + yhat[0] * np.sin(path[2])
+    theta = path[2] + yhat[1]
+
+    return x, y, theta
+
+
 def main():
     gt_train = np.loadtxt(open("gt_train.csv"), delimiter=",")
     gt_dead = np.loadtxt(open("gt_deadreck.csv"), delimiter=",")
     odom_train = np.loadtxt(open("odom_train.csv"), delimiter=",")
     odom_dt = np.loadtxt(open("odom_dt.csv"), delimiter=",")
+    odom_test = read_dat(
+        3, "ds0/ds0_Odometry.dat",
+        ["Time [s]", "forward velocity [m/s]", "angular velocity[rad/s]"])
+    ground_truth = read_dat(
+        3, "ds0/ds0_Groundtruth.dat",
+        ["Time [s]", "x [m]", "y [m]", "orientation [rad]"])
 
-    diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt = viz_data(
-        gt_dead, gt_train, odom_train)
+    diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt, odom_test = viz_data(
+        gt_dead, gt_train, odom_train, odom_test, ground_truth)
 
     # plot_viz(odom_train, diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt)
 
-    xm, xmdt, ymabs, ymcart = setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt)
+    xm, xmdt, ymabs, ymcart, xmtest = setup(dmag_gt, dmag_h, dmag_x, dmag_y,
+                                            odom_train, odom_dt, odom_test)
 
-    dataset1 = np.hstack((xm, ymabs))
-    dataset2 = np.hstack((xm, ymcart))
+    # dataset1 = np.hstack((xm, ymabs))
+    # dataset2 = np.hstack((xm, ymcart))
 
-    dataset3 = np.hstack((xmdt, ymabs))
-    dataset4 = np.hstack((xmdt, ymcart))
+    # dataset3 = np.hstack((xmdt, ymabs))
+    # dataset4 = np.hstack((xmdt, ymcart))
 
-    train, test = train_test_split(dataset1, 0.60)
+    # train, test = train_test_split(dataset1, 0.60)
 
-    print(np.shape(train))
-    print(np.shape(test))
+    # print(np.shape(train))
+    # print(np.shape(test))
 
-    k = 0.03
+    k = 0.005
     # perform LWLR
     yhat = lwlr(xmdt, xmdt, ymabs, k)
+
+    with open("yhat.csv", "w+") as my_csv:
+        csvWriter = csv.writer(my_csv, delimiter=',')
+        csvWriter.writerows(yhat)
+
+    path = [[1.29812900, 1.88315210, 2.82870000]]
+
+    for i in range(len(xmtest)):
+        x, y, theta = move(yhat[i, :], path[-1])
+        path.append([x, y, theta])
+
+    # Plot lwlr vs gt
+    # Initialize Plot
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Dead Reckoning Pose Estimation VS. Ground Truth Data')
+    plt.ylabel('y [m]')
+    plt.xlabel('x [m]')
+
+    # Set range for desired final iteration
+    inc_range = 1000
+    # Plot lwlr
+    path_x = [px[0] for px in path]
+    path_y = [py[1] for py in path]
+    plt.plot(path_x, path_y, '-k', label='LWLR Data')
+    # Plot Ground Truth Data
+    ground_truth_x = [gx[1] for gx in ground_truth]
+    ground_truth_y = [gy[2] for gy in ground_truth]
+
+    # Dead Reckoning
+    # path_xs = []
+    # path_ys = []
+    # for px in range(inc_range):
+    #     path_xs.append(path_x[px])
+    # for py in range(inc_range):
+    #     path_ys.append(path_y[py])
+    # plt.plot(path_xs, path_ys, '-k', label='Dead Reckoning Data')
+    # # Append final index of reduced range to
+    # # full range for plotting
+    # path_x.append(path_xs[-1])
+    # path_y.append(path_ys[-1])
+
+    # Ground Truth
+    ground_truth_xs = []
+    ground_truth_ys = []
+    for gx in range(inc_range):
+        ground_truth_xs.append(ground_truth_x[gx])
+    for gy in range(inc_range):
+        ground_truth_ys.append(ground_truth_y[gy])
+    plt.plot(ground_truth_xs, ground_truth_ys, '-g', label='Ground Truth Data')
+    # Append final index of reduced range to
+    # full range for plotting
+    ground_truth_x.append(ground_truth_xs[-1])
+    ground_truth_y.append(ground_truth_ys[-1])
+
+    # Plot inital position (Both)
+    plt.plot(path_x[0],
+             path_y[0],
+             color='gold',
+             marker='o',
+             markersize=10,
+             label='Starting Point')
+
+    # Plot final position (Dead Reckoning)
+    plt.plot(path_x[-1],
+             path_y[-1],
+             color='darkviolet',
+             marker='o',
+             markersize=5,
+             label='Endpoints')
+
+    # Plot final position (Ground Truth)
+    plt.plot(ground_truth_x[-1],
+             ground_truth_y[-1],
+             color='darkviolet',
+             marker='o',
+             markersize=5)
+
+    # Show Legend
+    plt.legend()
+
+    plt.show()
 
     yhat1, yhat2 = np.hsplit(yhat, 2)
     ymabs1, ymabs2 = np.hsplit(ymabs, 2)
@@ -343,7 +480,7 @@ def main():
     # print(np.shape(ymabs1))
     # print(np.shape(odom_train))
 
-    plot(v, ymabs1, v, yhat1)
+    # plot(v, ymabs1, v, yhat1)
 
 
 if __name__ == "__main__":
