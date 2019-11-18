@@ -23,40 +23,38 @@ import matplotlib.pyplot as plt
 
 
 def lwlr_pt(x_q, xm, ym, k):
-
     # convert to matrix
-    xM = np.mat(xm)
-    yM = np.mat(ym)
+    # xM = np.mat(xm)
+    # yM = np.mat(ym)
+    xM = np.reshape(xm, (-1, 3))
+    yM = np.reshape(ym, (-1, 2))
     # diagonal matrix
     m = np.shape(xM)[0]
-    w = np.mat(np.eye((m)))
+    # w = np.mat(np.eye((m)))
+    w = np.eye(m)
     # fill weights using Gaussian Kernel
     for i in range(m):
-        diffM = x_q - xM[i, :]
-        # print(x_q)
-        # print(xM[i, :])
+        # diffM = x_q - xM[i, :]
+        diffM = xM[i, :] - x_q
         # print(diffM)
-        # print("\n")
-        w[i, i] = np.exp(diffM * diffM.T / (-2.0 * k**2))
+        w[i, i] = np.exp(np.dot(diffM, diffM.T) / (-2.0 * k**2))
+        # w[i, i] = np.sqrt(np.dot(diffM.T, diffM)) / k
 
     # Find Beta
-    xTwx = xM.T * w * xM
+    Z = np.dot(w, xM)
+    v = np.dot(w, yM)
+    ZTZ = np.dot(Z.T, Z)
     # Try for inverse case
     try:
         # inverse
-        inv = np.linalg.inv(xTwx)
+        inv = np.linalg.inv(ZTZ)
     except:
         # pseudoinverse
         print('pinv')
-        inv = np.linalg.pinv(xTwx)
+        inv = np.linalg.pinv(ZTZ)
 
-    B = inv * xM.T * w * yM
-    # print(B)
-    # print(x_q)
-
-    # print(x_q * B)
-    # find and return x_q
-    return x_q * B
+    B = np.dot(np.dot(inv, Z.T), v)
+    return np.dot(x_q.T, B)
 
 
 def lwlr(test, xm, ym, k):
@@ -67,10 +65,6 @@ def lwlr(test, xm, ym, k):
     """
     m = np.shape(test)[0]
     y_hat = np.zeros((m, 2))
-    # print(y_hat[0, 0])
-
-    # print(test[0])
-
     for i in range(m):
         # find Beta and hence y_hat for every x_q (test[i])
         y_hat[i] = lwlr_pt(test[i], xm, ym, k)
@@ -84,12 +78,6 @@ def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt, odom_test):
     odom_train = np.array(odom_train)
     odom_dt = np.array(odom_dt)
     odom_test = np.array(odom_test)
-
-    # remove first datapoint
-    dmag_gt = np.delete(dmag_gt, (0), axis=0)
-    dmag_x = np.delete(dmag_x, (0), axis=0)
-    dmag_y = np.delete(dmag_y, (0), axis=0)
-    dmag_h = np.delete(dmag_h, (0), axis=0)
 
     # Extract commands (independent vars)
     v = odom_train[:, 1]
@@ -111,9 +99,9 @@ def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt, odom_test):
     wtest = np.reshape(wtest, (-1, 1))
 
     dmag_gt = np.reshape(dmag_gt, (-1, 1))
-    dmag_x = np.reshape(dmag_gt, (-1, 1))
-    dmag_y = np.reshape(dmag_gt, (-1, 1))
-    dmag_h = np.reshape(dmag_gt, (-1, 1))
+    dmag_x = np.reshape(dmag_x, (-1, 1))
+    dmag_y = np.reshape(dmag_y, (-1, 1))
+    dmag_h = np.reshape(dmag_h, (-1, 1))
 
     # Now create xm (input matrix)
     xm = np.hstack((v, w))
@@ -143,7 +131,7 @@ def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt, odom_test):
     ymcart = ymcart[:num, :]
 
     # Use first few samples from test data
-    xmtest = xmtest[:1000, :]
+    xmtest = xmtest[:938, :]
 
     return xm, xmdt, ymabs, ymcart, xmtest
 
@@ -200,12 +188,11 @@ def viz_data(gt_dead, gt_train, odom_train, odom_test, ground_truth):
         also assuming no prior controls and that controls
         extend to next gt_train
     """
-    # Get odom_test * dt
-
     # start by turning data into 2D array
     gt_dead = np.array(gt_dead)
     gt_train = np.array(gt_train)
     odom_dt = np.array(odom_train)
+    odom_test = np.array(odom_test)
 
     n = np.shape(odom_train)[0]
 
@@ -214,6 +201,10 @@ def viz_data(gt_dead, gt_train, odom_train, odom_test, ground_truth):
 
     for g in range(len(gt_train) - 1):
         gt_train[g, :] = gt_train[g + 1, :] - gt_train[g, :]
+
+    for od in range(np.shape(odom_test)[0] - 1):
+        odom_test[od, 1:] = odom_test[od, 1:] * (odom_test[od + 1, 0] -
+                                                 odom_test[od, 0])
 
     dmag_x = gt_train[:, 1]
     dmag_y = gt_train[:, 2]
@@ -231,101 +222,6 @@ def viz_data(gt_dead, gt_train, odom_train, odom_test, ground_truth):
     diff_head = gt_dead[:, 3] - dmag_h
 
     return diff_dmag, diff_head, dmag_gt_train, dmag_x, dmag_y, dmag_h, odom_dt, odom_test
-
-
-def plot_viz(odom, diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h,
-             odom_dt):
-    """
-    """
-
-    # First turn odom into array
-    odom = np.array(odom)
-
-    # remove first datapoint from diff_dmag and diff_head
-    diff_dmag = np.delete(diff_dmag, (0), axis=0)
-    diff_head = np.delete(diff_head, (0), axis=0)
-    dmag_gt = np.delete(dmag_gt, (0), axis=0)
-    dmag_x = np.delete(dmag_x, (0), axis=0)
-    dmag_y = np.delete(dmag_y, (0), axis=0)
-    dmag_h = np.delete(dmag_h, (0), axis=0)
-
-    # Initialize Plot dmagv dt
-    plt.figure(1)
-    plt.autoscale(enable=True, axis='both', tight=None)
-    plt.title('Distance error for v commands')
-    plt.ylabel('dmag [m]')
-    plt.xlabel('vdt [m]')
-    plt.scatter(odom_dt[:, 1], diff_dmag)
-
-    # Initialize Plot dmagv
-    plt.figure(2)
-    plt.autoscale(enable=True, axis='both', tight=None)
-    plt.title('Distance error for v commands')
-    plt.ylabel('dmag [m]')
-    plt.xlabel('vdt [m/s]')
-    plt.scatter(odom[:, 1], diff_dmag)
-
-    # Initialize Plot dmagw dt
-    plt.figure(3)
-    plt.autoscale(enable=True, axis='both', tight=None)
-    plt.title('Distance error for w commands')
-    plt.ylabel('dmag [m]')
-    plt.xlabel('wdt [rad]')
-    plt.scatter(odom_dt[:, 2], diff_dmag)
-
-    # Initialize Plot dmagw
-    plt.figure(4)
-    plt.autoscale(enable=True, axis='both', tight=None)
-    plt.title('Distance error for w commands')
-    plt.ylabel('dmag [m]')
-    plt.xlabel('wdt [rad/s]')
-    plt.scatter(odom[:, 2], diff_dmag)
-
-    # Initialize Plot dmagv dt
-    plt.figure(5)
-    plt.autoscale(enable=True, axis='both', tight=None)
-    plt.title('Distance change for v commands')
-    plt.ylabel('dmag [m]')
-    plt.xlabel('vdt [m]')
-    plt.scatter(odom_dt[:, 1], dmag_gt)
-
-    # Initialize Plot dmagv
-    plt.figure(6)
-    plt.autoscale(enable=True, axis='both', tight=None)
-    plt.title('Distance change for v commands')
-    plt.ylabel('dmag [m]')
-    plt.xlabel('vdt [m/s]')
-    plt.scatter(odom[:, 1], dmag_gt)
-
-    # Initialize Plot dmagw dt
-    plt.figure(7)
-    plt.autoscale(enable=True, axis='both', tight=None)
-    plt.title('Distance change for w commands')
-    plt.ylabel('dmag [m]')
-    plt.xlabel('wdt [rad]')
-    plt.scatter(odom_dt[:, 2], dmag_gt)
-
-    # Initialize Plot dmagw
-    plt.figure(8)
-    plt.autoscale(enable=True, axis='both', tight=None)
-    plt.title('Distance change for w commands')
-    plt.ylabel('dmag [m]')
-    plt.xlabel('wdt [rad/s]')
-    plt.scatter(odom[:, 2], dmag_gt)
-
-    plt.show()
-
-
-def plot(x, y, xt, yhat):
-    # Sine Plot
-    plt.autoscale(enable=True, axis='both', tight=None)
-    plt.title('Noisy Sine Wave')
-    plt.ylabel('y')
-    plt.xlabel('x')
-    plt.scatter(x, y, color='b')
-    plt.scatter(xt, yhat, color='r')
-
-    plt.show()
 
 
 # Read .dat Files using Pandas
@@ -349,9 +245,9 @@ def read_dat(start_index, file_path, usecols):
 
 
 def move(yhat, path):
+    theta = path[2] + yhat[1]
     x = path[0] + yhat[0] * np.cos(path[2])
     y = path[1] + yhat[0] * np.sin(path[2])
-    theta = path[2] + yhat[1]
 
     return x, y, theta
 
@@ -387,13 +283,21 @@ def main():
     # print(np.shape(train))
     # print(np.shape(test))
 
-    k = 0.005
+    k = 0.01
     # perform LWLR
-    yhat = lwlr(xmdt, xmdt, ymabs, k)
+    yhat = lwlr(xmtest, xmdt, ymabs, k)
 
     with open("yhat.csv", "w+") as my_csv:
         csvWriter = csv.writer(my_csv, delimiter=',')
         csvWriter.writerows(yhat)
+
+    with open("xmtest.csv", "w+") as my_csv:
+        csvWriter = csv.writer(my_csv, delimiter=',')
+        csvWriter.writerows(xmtest)
+
+    with open("xmdt.csv", "w+") as my_csv:
+        csvWriter = csv.writer(my_csv, delimiter=',')
+        csvWriter.writerows(xmdt)
 
     path = [[1.29812900, 1.88315210, 2.82870000]]
 
@@ -409,7 +313,7 @@ def main():
     plt.xlabel('x [m]')
 
     # Set range for desired final iteration
-    inc_range = 1000
+    inc_range = 500
     # Plot lwlr
     path_x = [px[0] for px in path]
     path_y = [py[1] for py in path]
@@ -418,26 +322,13 @@ def main():
     ground_truth_x = [gx[1] for gx in ground_truth]
     ground_truth_y = [gy[2] for gy in ground_truth]
 
-    # Dead Reckoning
-    # path_xs = []
-    # path_ys = []
-    # for px in range(inc_range):
-    #     path_xs.append(path_x[px])
-    # for py in range(inc_range):
-    #     path_ys.append(path_y[py])
-    # plt.plot(path_xs, path_ys, '-k', label='Dead Reckoning Data')
-    # # Append final index of reduced range to
-    # # full range for plotting
-    # path_x.append(path_xs[-1])
-    # path_y.append(path_ys[-1])
-
     # Ground Truth
     ground_truth_xs = []
     ground_truth_ys = []
-    for gx in range(inc_range):
-        ground_truth_xs.append(ground_truth_x[gx])
-    for gy in range(inc_range):
-        ground_truth_ys.append(ground_truth_y[gy])
+    for ggx in range(inc_range):
+        ground_truth_xs.append(ground_truth_x[ggx])
+    for ggy in range(inc_range):
+        ground_truth_ys.append(ground_truth_y[ggy])
     plt.plot(ground_truth_xs, ground_truth_ys, '-g', label='Ground Truth Data')
     # Append final index of reduced range to
     # full range for plotting
