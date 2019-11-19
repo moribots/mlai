@@ -171,7 +171,7 @@ def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt, odom_test):
     xmtest = np.hstack((xmtest, ones_coltest))
 
     # Now limit to number of points (lest lwlr take too long)
-    num = 100  # 5000
+    num = 5000  # 5000
     xm = xm[:num, :]
     xmdt = xmdt[:num, :]
     ymabs = ymabs[:num, :]
@@ -490,7 +490,7 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth, L
     xm, xmdt, ymabs, ymcart, xmtest = setup(dmag_gt, dmag_h, dmag_x, dmag_y,
                                             odom_train, odom_dt, odom_test)
 
-    k = 0.0005  # 8e-05
+    k = 8e-05  # 8e-05
 
     if LWLR_m == 0:
         # perform LWLR
