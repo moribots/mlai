@@ -22,16 +22,18 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-def lwlr_pt(x_q, xm, ym, k):
+def lwlr_pt(x_q, xm, ym, k, xval, dim):
     # convert to matrix
     # xM = np.mat(xm)
     # yM = np.mat(ym)
     xM = np.reshape(xm, (-1, 3))
-    yM = np.reshape(ym, (-1, 2))
+    yM = np.reshape(ym, (-1, dim))
     # diagonal matrix
     m = np.shape(xM)[0]
     # w = np.mat(np.eye((m)))
     w = np.eye(m)
+    # Set rejection threshold
+    thresh = 0  # 0.012
     # fill weights using Gaussian Kernel
     for i in range(m):
         # diffM = x_q - xM[i, :]
@@ -39,14 +41,27 @@ def lwlr_pt(x_q, xm, ym, k):
         dh = np.divide(np.dot(diffM.T, diffM), k)
         kernel = np.exp(-np.dot(dh, dh.T))
         w[i, i] = np.sqrt(kernel)
+        if w[i, i] < thresh:
+            w[i, i] = 0
         # print(diffM)
         # w[i, i] = np.exp(np.dot(diffM, diffM.T) / (-2.0 * k**2))
         # w[i, i] = np.sqrt(np.dot(diffM.T, diffM)) / k
+    if xval is True:
+        # Perform cross-validation by removing x_q weight from eqn
+        i = 0
+        for i in range(m):
+            if w[i, i] == 1:
+                # print(i)
+                # print("ping")
+                w[i, i] = 0
+    # print("\n")
 
-    # Find Beta
+    # find Z, v
     Z = np.dot(w, xM)
     v = np.dot(w, yM)
     ZTZ = np.dot(Z.T, Z)
+
+    # Find Beta
     # Try for inverse case
     try:
         # inverse
@@ -57,7 +72,32 @@ def lwlr_pt(x_q, xm, ym, k):
         inv = np.linalg.pinv(ZTZ)
 
     B = np.dot(np.dot(inv, Z.T), v)
-    return np.dot(x_q.T, B)
+
+    # find nLWR
+    i = 0
+    nLWR = 0
+    for i in range(len(w)):
+        nLWR += w[i, i]**2
+    # find ri
+    i = 0
+    r = np.empty((len(xM), dim))
+    summ = 0
+    for i in range(len(xM)):
+        Zi = np.reshape(Z[i], (-1, 1))
+        r[i] = np.dot(Zi.T, B) - v[i]
+        summ += (r[i] / (1 - np.dot(np.dot(Z[i].T, inv), Z[i])))**2
+
+    # calc xval mean sqrt err for xq
+    MSE_q = (1 / nLWR) * summ
+
+    # calc var for xq
+    i = 0
+    C_q = 0
+    for i in range(len(r)):
+        C_q += r[i]**2
+    var_q = C_q / nLWR
+
+    return np.dot(x_q.T, B), MSE_q, var_q
 
 
 def lwlr(test, xm, ym, k):
@@ -66,14 +106,17 @@ def lwlr(test, xm, ym, k):
         Beta: (n+1)xm
         test: (n+1)xm (row of 1 at end)
     """
+    dim = np.shape(ym)[1]
     m = np.shape(test)[0]
-    y_hat = np.zeros((m, 2))
+    y_hat = np.zeros((m, dim))
+    MSE = np.zeros((m, dim))
+    VAR = np.zeros((m, dim))
     for i in range(m):
         # find Beta and hence y_hat for every x_q (test[i])
-        y_hat[i] = lwlr_pt(test[i], xm, ym, k)
+        y_hat[i], MSE[i], VAR[i] = lwlr_pt(test[i], xm, ym, k, False, dim)
         if i % 200 == 0:
             print("Completed {} of {}".format(i, m))
-    return y_hat
+    return y_hat, MSE, VAR
 
 
 def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt, odom_test):
@@ -128,14 +171,14 @@ def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt, odom_test):
     xmtest = np.hstack((xmtest, ones_coltest))
 
     # Now limit to number of points (lest lwlr take too long)
-    num = 500
+    num = 500  # 5000
     xm = xm[:num, :]
     xmdt = xmdt[:num, :]
     ymabs = ymabs[:num, :]
     ymcart = ymcart[:num, :]
 
     # Use first few samples from test data
-    xmtest = xmtest[:6000, :]
+    xmtest = xmtest[:3000, :]
 
     return xm, xmdt, ymabs, ymcart, xmtest
 
@@ -255,109 +298,10 @@ def move(yhat, path):
     theta = path[2] + yhat[1]
     x = path[0] + yhat[0] * np.cos(path[2])
     y = path[1] + yhat[0] * np.sin(path[2])
-
+    # x = path[0] + yhat[0]
+    # y = path[1] + yhat[1]
+    # theta = path[2] + yhat[2]
     return x, y, theta
-
-
-def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth):
-
-    diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt, odom_test = remove_outliers(
-        gt_train, gt_dead, odom_train, odom_test, ground_truth)
-
-    # plot_viz(odom_train, diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt)
-
-    xm, xmdt, ymabs, ymcart, xmtest = setup(dmag_gt, dmag_h, dmag_x, dmag_y,
-                                            odom_train, odom_dt, odom_test)
-
-    k = 0.00008
-    # perform LWLR
-    yhat = lwlr(xmtest, xmdt, ymabs, k)
-
-    # with open("yhat.csv", "w+") as my_csv:
-    #     csvWriter = csv.writer(my_csv, delimiter=',')
-    #     csvWriter.writerows(yhat)
-
-    # with open("xmtest.csv", "w+") as my_csv:
-    #     csvWriter = csv.writer(my_csv, delimiter=',')
-    #     csvWriter.writerows(xmtest)
-
-    # with open("xmdt.csv", "w+") as my_csv:
-    #     csvWriter = csv.writer(my_csv, delimiter=',')
-    #     csvWriter.writerows(xmdt)
-
-    path = [[1.29812900, 1.88315210, 2.82870000]]
-
-    for i in range(len(xmtest)):
-        x, y, theta = move(yhat[i, :], path[-1])
-        path.append([x, y, theta])
-
-    # Plot lwlr vs gt
-    # Initialize Plot
-    plt.autoscale(enable=True, axis='both', tight=None)
-    plt.title('LWLR Pose Estimation VS. Ground Truth Data')
-    plt.ylabel('y [m]')
-    plt.xlabel('x [m]')
-
-    # Set range for desired final iteration
-    inc_range = 6000
-    # Plot lwlr
-    path_x = [px[0] for px in path]
-    path_y = [py[1] for py in path]
-    plt.plot(path_x, path_y, '-k', label='LWLR Data')
-    # Plot Ground Truth Data
-    ground_truth_x = [gx[1] for gx in ground_truth]
-    ground_truth_y = [gy[2] for gy in ground_truth]
-
-    # Ground Truth
-    ground_truth_xs = []
-    ground_truth_ys = []
-    for ggx in range(inc_range):
-        ground_truth_xs.append(ground_truth_x[ggx])
-    for ggy in range(inc_range):
-        ground_truth_ys.append(ground_truth_y[ggy])
-    plt.plot(ground_truth_xs, ground_truth_ys, '-g', label='Ground Truth Data')
-    # Append final index of reduced range to
-    # full range for plotting
-    ground_truth_x.append(ground_truth_xs[-1])
-    ground_truth_y.append(ground_truth_ys[-1])
-
-    # Plot inital position (Both)
-    plt.plot(path_x[0],
-             path_y[0],
-             color='gold',
-             marker='o',
-             markersize=10,
-             label='Starting Point')
-
-    # Plot final position (Dead Reckoning)
-    plt.plot(path_x[-1],
-             path_y[-1],
-             color='darkviolet',
-             marker='o',
-             markersize=5,
-             label='Endpoints')
-
-    # Plot final position (Ground Truth)
-    plt.plot(ground_truth_x[-1],
-             ground_truth_y[-1],
-             color='darkviolet',
-             marker='o',
-             markersize=5)
-
-    # Show Legend
-    plt.legend()
-
-    plt.show()
-
-    yhat1, yhat2 = np.hsplit(yhat, 2)
-    ymabs1, ymabs2 = np.hsplit(ymabs, 2)
-    v, w, xm3 = np.hsplit(xmdt, 3)
-    # test2, test3, test4 = np.hsplit(test1, 3)
-
-    # print(np.shape(ymabs1))
-    # print(np.shape(odom_train))
-
-    # plot(v, ymabs1, v, yhat1)
 
 
 def pos_err_var(gt_train, gt_dead, odom_train, odom_test, ground_truth):
@@ -444,24 +388,12 @@ def remove_outliers(gt_train, gt_dead, odom_train, odom_test, ground_truth):
 
     # First turn odom into array
     odom_dt = np.array(odom_dt)
-
-    # remove first datapoint from diff_dmag and diff_head
-    # diff_dmag = np.delete(diff_dmag, (0), axis=0)
-    # diff_head = np.delete(diff_head, (0), axis=0)
-    # dmag_gt = np.delete(dmag_gt, (0), axis=0)
-    # dmag_x = np.delete(dmag_x, (0), axis=0)
-    # dmag_y = np.delete(dmag_y, (0), axis=0)
-    # dmag_h = np.delete(dmag_h, (0), axis=0)
-
-    # Now print new lengths for check
-    # print(np.shape(dmag_gt))
-    # print(np.shape(dmag_h))
     # Max dmag_gt is 0.013
     # Max dmag_h is 0.10
     ax = 1
     gh = 0
     while gh < len(dmag_gt) - ax:
-        if abs(dmag_gt[gh]) > 0.013 or abs(dmag_h[gh]) > 0.1:
+        if abs(dmag_gt[gh]) > 0.013 or abs(dmag_h[gh]) > 1:
             dmag_gt = np.delete(dmag_gt, gh, axis=0)
             odom_dt = np.delete(odom_dt, gh, axis=0)
             dmag_h = np.delete(dmag_h, gh, axis=0)
@@ -473,42 +405,208 @@ def remove_outliers(gt_train, gt_dead, odom_train, odom_test, ground_truth):
         gh += 1
         # if gh % 1000 == 0:
         #     print(gh)
+    # Now do the same for the vertical spikes at 0 for w
+    ax = 1
+    gh = 0
+    while gh < len(dmag_gt) - ax:
+        if abs(dmag_gt[gh]) > 0.003 or abs(dmag_h[gh]) > 0.003:
+            if odom_dt[gh, 2] > -0.001 and odom_dt[gh, 2] < 0.001 or odom_dt[
+                    gh, 1] < 0.00001:
+                dmag_gt = np.delete(dmag_gt, gh, axis=0)
+                odom_dt = np.delete(odom_dt, gh, axis=0)
+                dmag_h = np.delete(dmag_h, gh, axis=0)
+                dmag_x = np.delete(dmag_x, gh, axis=0)
+                dmag_y = np.delete(dmag_y, gh, axis=0)
+                # print("deleted")
+                ax += 1
+                gh -= 1
+        gh += 1
 
     # Now print new lengths for check
-    # print(np.shape(dmag_gt))
-    # print(np.shape(dmag_h))
+    print(np.shape(dmag_gt))
+    print(np.shape(dmag_h))
 
-    # plt.figure(5)
-    # plt.autoscale(enable=True, axis='both', tight=None)
-    # plt.title('Distance change for v commands')
-    # plt.ylabel('dmag [m]')
-    # plt.xlabel('vdt [m]')
-    # plt.scatter(odom_dt[:, 1], dmag_gt)
+    lim = 5000
 
-    # plt.figure(6)
-    # plt.autoscale(enable=True, axis='both', tight=None)
-    # plt.title('Distance change for w commands')
-    # plt.ylabel('dmag [m]')
-    # plt.xlabel('wdt [rad]')
-    # plt.scatter(odom_dt[:, 2], dmag_gt)
+    plt.figure(5)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Distance change for v commands')
+    plt.ylabel('dmag [m]')
+    plt.xlabel('vdt [m]')
+    plt.scatter(odom_dt[:lim, 1], dmag_gt[:lim])
 
-    # plt.figure(7)
-    # plt.autoscale(enable=True, axis='both', tight=None)
-    # plt.title('Heading change for v commands')
-    # plt.ylabel('dhead [rad]')
-    # plt.xlabel('vdt [m]')
-    # plt.scatter(odom_dt[:, 1], dmag_h)
+    plt.figure(6)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Distance change for w commands')
+    plt.ylabel('dmag [m]')
+    plt.xlabel('wdt [rad]')
+    plt.scatter(odom_dt[:lim, 2], dmag_gt[:lim])
 
-    # plt.figure(8)
-    # plt.autoscale(enable=True, axis='both', tight=None)
-    # plt.title('Heading change for w commands')
-    # plt.ylabel('dhead [rad]')
-    # plt.xlabel('wdt [rad]')
-    # plt.scatter(odom_dt[:, 2], dmag_h)
+    plt.figure(7)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Heading change for v commands')
+    plt.ylabel('dhead [rad]')
+    plt.xlabel('vdt [m]')
+    plt.scatter(odom_dt[:lim, 1], dmag_h[:lim])
+
+    plt.figure(8)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Heading change for w commands')
+    plt.ylabel('dhead [rad]')
+    plt.xlabel('wdt [rad]')
+    plt.scatter(odom_dt[:lim, 2], dmag_h[:lim])
 
     # plt.show()
 
     return diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt, odom_test
+
+
+def lwlr_crossval(test, xm, ym, k):
+    """ xm: nx(m+1) (col of 1s at end)
+        ym: nxm or nx1 for singular
+        Beta: (n+1)xm
+        test: (n+1)xm (row of 1 at end)
+    """
+    dim = np.shape(ym)[1]
+    m = np.shape(test)[0]
+    y_hat = np.zeros((m, dim))
+    MSE = np.zeros((m, dim))
+    VAR = np.zeros((m, dim))
+    for i in range(m):
+        # find Beta and hence y_hat for every x_q (test[i])
+        y_hat[i], MSE[i], VAR[i] = lwlr_pt(test[i], xm, ym, k, True, dim)
+        if i % 200 == 0:
+            print("Completed {} of {}".format(i, m))
+    return y_hat, MSE, VAR
+
+
+def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth, LWLR_m):
+
+    diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt, odom_test = remove_outliers(
+        gt_train, gt_dead, odom_train, odom_test, ground_truth)
+
+    # plot_viz(odom_train, diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt)
+
+    xm, xmdt, ymabs, ymcart, xmtest = setup(dmag_gt, dmag_h, dmag_x, dmag_y,
+                                            odom_train, odom_dt, odom_test)
+
+    k = 0.000005  # 8e-05
+
+    if LWLR_m == 0:
+        # perform LWLR
+        yhat, MSE, VAR = lwlr(xmtest, xmdt, ymabs, k)
+        print(np.shape(MSE))
+        print(np.shape(VAR))
+
+        # with open("yhat.csv", "w+") as my_csv:
+        #     csvWriter = csv.writer(my_csv, delimiter=',')
+        #     csvWriter.writerows(yhat)
+
+        # with open("xmtest.csv", "w+") as my_csv:
+        #     csvWriter = csv.writer(my_csv, delimiter=',')
+        #     csvWriter.writerows(xmtest)
+
+        # with open("xmdt.csv", "w+") as my_csv:
+        #     csvWriter = csv.writer(my_csv, delimiter=',')
+        #     csvWriter.writerows(xmdt)
+
+        path = [[1.29812900, 1.88315210, 2.82870000]]
+
+        for i in range(len(xmtest)):
+            x, y, theta = move(yhat[i, :], path[-1])
+            path.append([x, y, theta])
+
+        # Plot lwlr vs gt
+        # Initialize Plot
+        plt.figure(100)
+        plt.autoscale(enable=True, axis='both', tight=None)
+        plt.title('LWLR Pose Estimation VS. Ground Truth Data')
+        plt.ylabel('y [m]')
+        plt.xlabel('x [m]')
+
+        # Set range for desired final iteration
+        inc_range = 3000
+        # Plot lwlr
+        path_x = [px[0] for px in path]
+        path_y = [py[1] for py in path]
+        plt.plot(path_x, path_y, '-k', label='LWLR Data')
+        # Plot Ground Truth Data
+        ground_truth_x = [gx[1] for gx in ground_truth]
+        ground_truth_y = [gy[2] for gy in ground_truth]
+
+        # Ground Truth
+        ground_truth_xs = []
+        ground_truth_ys = []
+        for ggx in range(inc_range):
+            ground_truth_xs.append(ground_truth_x[ggx])
+        for ggy in range(inc_range):
+            ground_truth_ys.append(ground_truth_y[ggy])
+        plt.plot(ground_truth_xs, ground_truth_ys, '-g', label='Ground Truth Data')
+        # Append final index of reduced range to
+        # full range for plotting
+        ground_truth_x.append(ground_truth_xs[-1])
+        ground_truth_y.append(ground_truth_ys[-1])
+
+        # Plot inital position (Both)
+        plt.plot(path_x[0],
+                 path_y[0],
+                 color='gold',
+                 marker='o',
+                 markersize=10,
+                 label='Starting Point')
+
+        # Plot final position (Dead Reckoning)
+        plt.plot(path_x[-1],
+                 path_y[-1],
+                 color='darkviolet',
+                 marker='o',
+                 markersize=5,
+                 label='Endpoints')
+
+        # Plot final position (Ground Truth)
+        plt.plot(ground_truth_x[-1],
+                 ground_truth_y[-1],
+                 color='darkviolet',
+                 marker='o',
+                 markersize=5)
+
+        # Show Legend
+        plt.legend()
+
+        plt.show()
+
+        yhat1, yhat2 = np.hsplit(yhat, 2)
+        ymabs1, ymabs2 = np.hsplit(ymabs, 2)
+        v, w, xm3 = np.hsplit(xmdt, 3)
+        test2, test3, test4 = np.hsplit(test1, 3)
+
+        # print(np.shape(ymabs1))
+        # print(np.shape(odom_train))
+
+        # plot(v, ymabs1, v, yhat1)
+
+    if LWLR_m == 1:
+        # perform xvalidation
+        yhat_x, MSE_x, VAR_x = lwlr_crossval(xmdt, xmdt, ymabs, k)
+
+        MSE_xd, MSE_xh = np.hsplit(MSE_x, 2)
+        VAR_xd, VAR_xh = np.hsplit(VAR_x, 2)
+
+        MSE_d = np.sum(MSE_xd)
+        MSE_h = np.sum(MSE_xh)
+
+        VAR_d = np.sum(VAR_xd)
+        VAR_h = np.sum(VAR_xh)
+
+        print("h is {}".format(k))
+        print("MSE sum for dmag: {}".format(MSE_d))
+        print("MSE sum for hmag: {}".format(MSE_h))
+
+        print("VAR sum for dmag: {}".format(VAR_d))
+        print("VAR sum for hmag: {}".format(VAR_h))
+        # print(np.shape(yhat_x))
+        # print(np.shape(MSE_x))
+        # print(np.shape(VAR_x))
 
 
 def main():
@@ -531,7 +629,9 @@ def main():
     #     gt_train, gt_dead, odom_train, odom_test, ground_truth)
 
     # LWLR
-    lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth)
+    # LWLR Mode: 0, normal, 1, xval
+    LWLR_m = 0
+    lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth, LWLR_m)
 
 
 if __name__ == "__main__":

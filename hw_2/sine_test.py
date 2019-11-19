@@ -42,7 +42,7 @@ def lwlr_pt(x_q, xm, ym, k):
     for i in range(m):
         diffM = x_q - xM[i, :]
         # print(np.shape(x_q))
-        print(diffM)
+        # print(diffM)
         w[i, i] = np.exp(diffM * diffM.T / (-2.0 * k**2))
 
     # reshape x_q and append 1
@@ -74,12 +74,12 @@ def lwlr(test, xm, ym, k):
 def plot(x, y, xt, yhat):
     # Sine Plot
     plt.autoscale(enable=True, axis='both', tight=None)
-    plt.title('Noisy Sine Wave')
+    plt.title('Noisy Sine Wave LWLR Test')
     plt.ylabel('y')
     plt.xlabel('x')
-    plt.scatter(x, y, color='b')
-    plt.scatter(xt, yhat, color='r')
-
+    plt.scatter(x, y, color='b', label="Training Set")
+    plt.scatter(xt, yhat, color='r', label="Testing Set")
+    plt.legend()
     plt.show()
 
 
