@@ -71,7 +71,8 @@ def lwlr(test, xm, ym, k):
     for i in range(m):
         # find Beta and hence y_hat for every x_q (test[i])
         y_hat[i] = lwlr_pt(test[i], xm, ym, k)
-        print("Completed {} of {}".format(i, m))
+        if i % 200 == 0:
+            print("Completed {} of {}".format(i, m))
     return y_hat
 
 
@@ -139,7 +140,7 @@ def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt, odom_test):
     return xm, xmdt, ymabs, ymcart, xmtest
 
 
-def train_test_split(dataset, split=0.60):
+def train_test_split(dataset, split=0.80):
     train = np.empty((1, len(dataset[0])))
     train_size = split * len(dataset)
     test = dataset
@@ -205,6 +206,9 @@ def viz_data(gt_dead, gt_train, odom_train, odom_test, ground_truth):
     for g in range(len(gt_train) - 1):
         gt_train[g, :] = gt_train[g + 1, :] - gt_train[g, :]
 
+    for d in range(len(gt_dead) - 1):
+        gt_dead[d, :] = gt_dead[d + 1, :] - gt_dead[d, :]
+
     for od in range(np.shape(odom_test)[0] - 1):
         odom_test[od, 1:] = odom_test[od, 1:] * (odom_test[od + 1, 0] -
                                                  odom_test[od, 0])
@@ -255,52 +259,31 @@ def move(yhat, path):
     return x, y, theta
 
 
-def main():
-    gt_train = np.loadtxt(open("gt_train.csv"), delimiter=",")
-    gt_dead = np.loadtxt(open("gt_deadreck.csv"), delimiter=",")
-    odom_train = np.loadtxt(open("odom_train.csv"), delimiter=",")
-    odom_dt = np.loadtxt(open("odom_dt.csv"), delimiter=",")
-    odom_test = read_dat(
-        3, "ds0/ds0_Odometry.dat",
-        ["Time [s]", "forward velocity [m/s]", "angular velocity[rad/s]"])
-    ground_truth = read_dat(
-        3, "ds0/ds0_Groundtruth.dat",
-        ["Time [s]", "x [m]", "y [m]", "orientation [rad]"])
+def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth):
 
-    diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt, odom_test = viz_data(
-        gt_dead, gt_train, odom_train, odom_test, ground_truth)
+    diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt, odom_test = remove_outliers(
+        gt_train, gt_dead, odom_train, odom_test, ground_truth)
 
     # plot_viz(odom_train, diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt)
 
     xm, xmdt, ymabs, ymcart, xmtest = setup(dmag_gt, dmag_h, dmag_x, dmag_y,
                                             odom_train, odom_dt, odom_test)
 
-    # dataset1 = np.hstack((xm, ymabs))
-    # dataset2 = np.hstack((xm, ymcart))
-
-    # dataset3 = np.hstack((xmdt, ymabs))
-    # dataset4 = np.hstack((xmdt, ymcart))
-
-    # train, test = train_test_split(dataset1, 0.60)
-
-    # print(np.shape(train))
-    # print(np.shape(test))
-
-    k = 0.000095
+    k = 0.00008
     # perform LWLR
     yhat = lwlr(xmtest, xmdt, ymabs, k)
 
-    with open("yhat.csv", "w+") as my_csv:
-        csvWriter = csv.writer(my_csv, delimiter=',')
-        csvWriter.writerows(yhat)
+    # with open("yhat.csv", "w+") as my_csv:
+    #     csvWriter = csv.writer(my_csv, delimiter=',')
+    #     csvWriter.writerows(yhat)
 
-    with open("xmtest.csv", "w+") as my_csv:
-        csvWriter = csv.writer(my_csv, delimiter=',')
-        csvWriter.writerows(xmtest)
+    # with open("xmtest.csv", "w+") as my_csv:
+    #     csvWriter = csv.writer(my_csv, delimiter=',')
+    #     csvWriter.writerows(xmtest)
 
-    with open("xmdt.csv", "w+") as my_csv:
-        csvWriter = csv.writer(my_csv, delimiter=',')
-        csvWriter.writerows(xmdt)
+    # with open("xmdt.csv", "w+") as my_csv:
+    #     csvWriter = csv.writer(my_csv, delimiter=',')
+    #     csvWriter.writerows(xmdt)
 
     path = [[1.29812900, 1.88315210, 2.82870000]]
 
@@ -311,7 +294,7 @@ def main():
     # Plot lwlr vs gt
     # Initialize Plot
     plt.autoscale(enable=True, axis='both', tight=None)
-    plt.title('Dead Reckoning Pose Estimation VS. Ground Truth Data')
+    plt.title('LWLR Pose Estimation VS. Ground Truth Data')
     plt.ylabel('y [m]')
     plt.xlabel('x [m]')
 
@@ -375,6 +358,180 @@ def main():
     # print(np.shape(odom_train))
 
     # plot(v, ymabs1, v, yhat1)
+
+
+def pos_err_var(gt_train, gt_dead, odom_train, odom_test, ground_truth):
+    diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt, odom_test = viz_data(
+        gt_dead, gt_train, odom_train, odom_test, ground_truth)
+
+    # First turn odom into array
+    odom_dt = np.array(odom_dt)
+
+    # remove first datapoint from diff_dmag and diff_head
+    diff_dmag = np.delete(diff_dmag, (0), axis=0)
+    diff_head = np.delete(diff_head, (0), axis=0)
+    dmag_gt = np.delete(dmag_gt, (0), axis=0)
+    dmag_x = np.delete(dmag_x, (0), axis=0)
+    dmag_y = np.delete(dmag_y, (0), axis=0)
+    dmag_h = np.delete(dmag_h, (0), axis=0)
+
+    # Variance
+    print("The variance on the position error is {}".format(np.var(diff_dmag)))
+    print("The variance on the heading error is {}".format(np.var(diff_head)))
+
+    plt.figure(1)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Distance error for v commands')
+    plt.ylabel('dmag [m]')
+    plt.xlabel('vdt [m]')
+    plt.scatter(odom_dt[:, 1], diff_dmag)
+
+    plt.figure(2)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Distance error for w commands')
+    plt.ylabel('dmag [m]')
+    plt.xlabel('wdt [rad]')
+    plt.scatter(odom_dt[:, 2], diff_dmag)
+
+    plt.figure(3)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Heading error for v commands')
+    plt.ylabel('dhead [rad]')
+    plt.xlabel('vdt [m]')
+    plt.scatter(odom_dt[:, 1], diff_head)
+
+    plt.figure(4)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Heading error for w commands')
+    plt.ylabel('dhead [rad]')
+    plt.xlabel('wdt [rad]')
+    plt.scatter(odom_dt[:, 2], diff_head)
+
+    plt.figure(5)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Distance change for v commands')
+    plt.ylabel('dmag [m]')
+    plt.xlabel('vdt [m]')
+    plt.scatter(odom_dt[:, 1], dmag_gt)
+
+    plt.figure(6)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Distance change for w commands')
+    plt.ylabel('dmag [m]')
+    plt.xlabel('wdt [rad]')
+    plt.scatter(odom_dt[:, 2], dmag_gt)
+
+    plt.figure(7)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Heading change for v commands')
+    plt.ylabel('dhead [rad]')
+    plt.xlabel('vdt [m]')
+    plt.scatter(odom_dt[:, 1], dmag_h)
+
+    plt.figure(8)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Heading change for w commands')
+    plt.ylabel('dhead [rad]')
+    plt.xlabel('wdt [rad]')
+    plt.scatter(odom_dt[:, 2], dmag_h)
+
+    plt.show()
+
+
+def remove_outliers(gt_train, gt_dead, odom_train, odom_test, ground_truth):
+    diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt, odom_test = viz_data(
+        gt_dead, gt_train, odom_train, odom_test, ground_truth)
+
+    # First turn odom into array
+    odom_dt = np.array(odom_dt)
+
+    # remove first datapoint from diff_dmag and diff_head
+    # diff_dmag = np.delete(diff_dmag, (0), axis=0)
+    # diff_head = np.delete(diff_head, (0), axis=0)
+    # dmag_gt = np.delete(dmag_gt, (0), axis=0)
+    # dmag_x = np.delete(dmag_x, (0), axis=0)
+    # dmag_y = np.delete(dmag_y, (0), axis=0)
+    # dmag_h = np.delete(dmag_h, (0), axis=0)
+
+    # Now print new lengths for check
+    # print(np.shape(dmag_gt))
+    # print(np.shape(dmag_h))
+    # Max dmag_gt is 0.013
+    # Max dmag_h is 0.10
+    ax = 1
+    gh = 0
+    while gh < len(dmag_gt) - ax:
+        if abs(dmag_gt[gh]) > 0.013 or abs(dmag_h[gh]) > 0.1:
+            dmag_gt = np.delete(dmag_gt, gh, axis=0)
+            odom_dt = np.delete(odom_dt, gh, axis=0)
+            dmag_h = np.delete(dmag_h, gh, axis=0)
+            dmag_x = np.delete(dmag_x, gh, axis=0)
+            dmag_y = np.delete(dmag_y, gh, axis=0)
+            # print("deleted")
+            ax += 1
+            gh -= 1
+        gh += 1
+        # if gh % 1000 == 0:
+        #     print(gh)
+
+    # Now print new lengths for check
+    # print(np.shape(dmag_gt))
+    # print(np.shape(dmag_h))
+
+    # plt.figure(5)
+    # plt.autoscale(enable=True, axis='both', tight=None)
+    # plt.title('Distance change for v commands')
+    # plt.ylabel('dmag [m]')
+    # plt.xlabel('vdt [m]')
+    # plt.scatter(odom_dt[:, 1], dmag_gt)
+
+    # plt.figure(6)
+    # plt.autoscale(enable=True, axis='both', tight=None)
+    # plt.title('Distance change for w commands')
+    # plt.ylabel('dmag [m]')
+    # plt.xlabel('wdt [rad]')
+    # plt.scatter(odom_dt[:, 2], dmag_gt)
+
+    # plt.figure(7)
+    # plt.autoscale(enable=True, axis='both', tight=None)
+    # plt.title('Heading change for v commands')
+    # plt.ylabel('dhead [rad]')
+    # plt.xlabel('vdt [m]')
+    # plt.scatter(odom_dt[:, 1], dmag_h)
+
+    # plt.figure(8)
+    # plt.autoscale(enable=True, axis='both', tight=None)
+    # plt.title('Heading change for w commands')
+    # plt.ylabel('dhead [rad]')
+    # plt.xlabel('wdt [rad]')
+    # plt.scatter(odom_dt[:, 2], dmag_h)
+
+    # plt.show()
+
+    return diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt, odom_test
+
+
+def main():
+    gt_train = np.loadtxt(open("gt_train.csv"), delimiter=",")
+    gt_dead = np.loadtxt(open("gt_deadreck.csv"), delimiter=",")
+    odom_train = np.loadtxt(open("odom_train.csv"), delimiter=",")
+    odom_dt = np.loadtxt(open("odom_dt.csv"), delimiter=",")
+    odom_test = read_dat(
+        3, "ds0/ds0_Odometry.dat",
+        ["Time [s]", "forward velocity [m/s]", "angular velocity[rad/s]"])
+    ground_truth = read_dat(
+        3, "ds0/ds0_Groundtruth.dat",
+        ["Time [s]", "x [m]", "y [m]", "orientation [rad]"])
+
+    # Plot positional error and variance
+    # pos_err_var(gt_train, gt_dead, odom_train, odom_test, ground_truth)
+
+    # Remove outliers
+    # diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt, odom_test = remove_outliers(
+    #     gt_train, gt_dead, odom_train, odom_test, ground_truth)
+
+    # LWLR
+    lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth)
 
 
 if __name__ == "__main__":
