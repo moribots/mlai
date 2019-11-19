@@ -171,7 +171,7 @@ def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt, odom_test):
     xmtest = np.hstack((xmtest, ones_coltest))
 
     # Now limit to number of points (lest lwlr take too long)
-    num = 500  # 5000
+    num = 100  # 5000
     xm = xm[:num, :]
     xmdt = xmdt[:num, :]
     ymabs = ymabs[:num, :]
@@ -490,7 +490,7 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth, L
     xm, xmdt, ymabs, ymcart, xmtest = setup(dmag_gt, dmag_h, dmag_x, dmag_y,
                                             odom_train, odom_dt, odom_test)
 
-    k = 0.000005  # 8e-05
+    k = 0.0005  # 8e-05
 
     if LWLR_m == 0:
         # perform LWLR
@@ -598,9 +598,53 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth, L
         VAR_d = np.sum(VAR_xd)
         VAR_h = np.sum(VAR_xh)
 
+        MSE_xd = MSE_xd.flatten()
+        MSE_xh = MSE_xh.flatten()
+
+        VAR_xd = VAR_xd.flatten()
+        VAR_xh = VAR_xd.flatten()
+
+        MSE_xd = MSE_xd.tolist()
+        MSE_xh = MSE_xh.tolist()
+
+        print(len(MSE_xd))
+
+        # VAR_xd = VAR_xd.tolist()
+        # VAR_xh = VAR_xd.tolist()
+
         print("h is {}".format(k))
         print("MSE sum for dmag: {}".format(MSE_d))
         print("MSE sum for hmag: {}".format(MSE_h))
+
+        # Plot MSE
+        plt.figure(101)
+        plt.title("Mean Square Error for each x_q")
+        plt.ylabel('MSE')
+        plt.xlabel('x_q element')
+        plt.plot(range(len(MSE_xd)),
+                 MSE_xd,
+                 color='b',
+                 label='MSE for distance')
+        plt.plot(range(len(MSE_xh)),
+                 MSE_xh,
+                 color='r',
+                 label='MSE for heading')
+
+        # Plot VAR
+        plt.figure(102)
+        plt.title("Variance for each x_q")
+        plt.ylabel('VAR')
+        plt.xlabel('x_q element')
+        plt.plot(range(len(VAR_xd)),
+                 VAR_xd,
+                 color='b',
+                 label='VAR for distance')
+        plt.plot(range(len(VAR_xh)),
+                 VAR_xh,
+                 color='r',
+                 label='VAR for heading')
+        plt.legend()
+        plt.show()
 
         print("VAR sum for dmag: {}".format(VAR_d))
         print("VAR sum for hmag: {}".format(VAR_h))
@@ -630,7 +674,7 @@ def main():
 
     # LWLR
     # LWLR Mode: 0, normal, 1, xval
-    LWLR_m = 0
+    LWLR_m = 1
     lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth, LWLR_m)
 
 
