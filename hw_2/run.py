@@ -119,6 +119,100 @@ def lwlr(test, xm, ym, k):
     return y_hat, MSE, VAR
 
 
+def sine(cycles, pts, var):
+    T = 1  # period
+    y_var = var  # variance
+    x = []
+    y = []
+    for t in np.linspace(0, cycles * T, pts):
+        y_pt = np.sin((2 * np.pi * t) / T) + y_var * np.random.randn(1)
+        y.append(y_pt)
+        x.append(t)
+    return x, y
+
+
+def plot_sine(x, y, xt, yhat):
+    # Sine Plot
+    plt.figure(60)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Noisy Sine Wave LWLR Test')
+    plt.ylabel('y')
+    plt.xlabel('x')
+    plt.scatter(x, y, color='b', label="Training Set")
+    plt.scatter(xt, yhat, color='r', label="Testing Set")
+    plt.legend()
+    print("Please close the plot to move on \n")
+    plt.show()
+
+
+def lwlr_sine_pt(x_q, xm, ym, k):
+    # convert to matrix
+    xM = np.mat(xm)
+    yM = np.mat(ym)
+    # diagonal matrix
+    m = np.shape(xM)[0]
+    w = np.mat(np.eye((m)))
+    # fill weights using Gaussian Kernel
+    for i in range(m):
+        diffM = x_q - xM[i, :]
+        # print(np.shape(x_q))
+        # print(diffM)
+        w[i, i] = np.exp(diffM * diffM.T / (-2.0 * k**2))
+
+    # reshape x_q and append 1
+    x_q = np.reshape(x_q, (-1, 1))
+    x_q = np.vstack((x_q, 1)).T
+
+    # Find Beta
+    xTwx = xM.T * w * xM
+    B = xTwx.I * xM.T * w * yM
+    # find and return x_q
+    return x_q * B
+
+
+def lwlr_sine(test, xm, ym, k):
+    """ xm: nx(m+1) (col of 1s at end)
+        ym: nxm or nx1 for singular
+        Beta: (n+1)xm
+        test: (n+1)xm (row of 1 at end)
+    """
+    m = np.shape(test)[0]
+    y_hat = np.zeros(m)
+    for i in range(m):
+        # find Beta and hence y_hat for every x_q (test[i])
+        y_hat[i] = lwlr_sine_pt(test[i], xm, ym, k)
+        print("Completed {} of {}".format(i, m))
+    return y_hat
+
+
+def main_sine():
+    x, y = sine(2, 200, 0.05)
+    x_test = np.linspace(0.1, 2, 300)
+    # Reshaping below for matrix inv
+    # convert into arrays
+    xm = np.array(x)
+    ym = np.array(y)
+    ym = ym.flatten()
+    # -1 indicates use input dimension
+    ym = np.reshape(ym, (-1, 1))
+
+    # test = np.append(x, 1)
+    test = x_test
+    test = np.reshape(test, (-1, 1))
+
+    # -1 indicates use input dimension
+    xm = np.reshape(xm, (-1, 1))
+    ones_app = np.ones((np.shape(xm)[0], 1))
+    xm = np.hstack((xm, ones_app))
+    ym = ym
+
+    k = 0.05
+    # perform LWLR
+    yhat = lwlr_sine(test, xm, ym, k)
+
+    plot_sine(x, y, x_test, yhat)
+
+
 def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt, odom_test,
           inc_range, num):
 
@@ -379,85 +473,91 @@ def pos_err_var(gt_train, gt_dead, odom_train, odom_test, ground_truth):
     plt.ylabel('dhead [rad]')
     plt.xlabel('wdt [rad]')
     plt.scatter(odom_dt[:, 2], dmag_h)
-
+    print("Please close the plot to move on \n")
     plt.show()
 
 
-def remove_outliers(gt_train, gt_dead, odom_train, odom_test, ground_truth):
+def remove_outliers(gt_train,
+                    gt_dead,
+                    odom_train,
+                    odom_test,
+                    ground_truth,
+                    mode=0):
     diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt, odom_test = viz_data(
         gt_dead, gt_train, odom_train, odom_test, ground_truth)
 
-    # First turn odom into array
-    # odom_dt = np.array(odom_dt)
-    # # Max dmag_gt is 0.013
-    # # Max dmag_h is 0.10
-    # ax = 1
-    # gh = 0
-    # while gh < len(dmag_gt) - ax:
-    #     if abs(dmag_gt[gh]) > 0.013 or abs(dmag_h[gh]) > 1:
-    #         dmag_gt = np.delete(dmag_gt, gh, axis=0)
-    #         odom_dt = np.delete(odom_dt, gh, axis=0)
-    #         dmag_h = np.delete(dmag_h, gh, axis=0)
-    #         dmag_x = np.delete(dmag_x, gh, axis=0)
-    #         dmag_y = np.delete(dmag_y, gh, axis=0)
-    #         # print("deleted")
-    #         ax += 1
-    #         gh -= 1
-    #     gh += 1
-    #     # if gh % 1000 == 0:
-    #     #     print(gh)
-    # # Now do the same for the vertical spikes at 0 for w
-    # ax = 1
-    # gh = 0
-    # while gh < len(dmag_gt) - ax:
-    #     if abs(dmag_gt[gh]) > 0.003 or abs(dmag_h[gh]) > 0.003:
-    #         if odom_dt[gh, 2] > -0.001 and odom_dt[gh, 2] < 0.001 or odom_dt[
-    #                 gh, 1] < 0.00001:
-    #             dmag_gt = np.delete(dmag_gt, gh, axis=0)
-    #             odom_dt = np.delete(odom_dt, gh, axis=0)
-    #             dmag_h = np.delete(dmag_h, gh, axis=0)
-    #             dmag_x = np.delete(dmag_x, gh, axis=0)
-    #             dmag_y = np.delete(dmag_y, gh, axis=0)
-    #             # print("deleted")
-    #             ax += 1
-    #             gh -= 1
-    #     gh += 1
+    if mode == 1:
+        # First turn odom into array
+        odom_dt = np.array(odom_dt)
+        # Max dmag_gt is 0.013
+        # Max dmag_h is 0.10
+        ax = 1
+        gh = 0
+        while gh < len(dmag_gt) - ax:
+            if abs(dmag_gt[gh]) > 0.013 or abs(dmag_h[gh]) > 1:
+                dmag_gt = np.delete(dmag_gt, gh, axis=0)
+                odom_dt = np.delete(odom_dt, gh, axis=0)
+                dmag_h = np.delete(dmag_h, gh, axis=0)
+                dmag_x = np.delete(dmag_x, gh, axis=0)
+                dmag_y = np.delete(dmag_y, gh, axis=0)
+                # print("deleted")
+                ax += 1
+                gh -= 1
+            gh += 1
+            # if gh % 1000 == 0:
+            #     print(gh)
+        # Now do the same for the vertical spikes at 0 for w
+        ax = 1
+        gh = 0
+        while gh < len(dmag_gt) - ax:
+            if abs(dmag_gt[gh]) > 0.003 or abs(dmag_h[gh]) > 0.003:
+                if odom_dt[gh, 2] > -0.001 and odom_dt[
+                        gh, 2] < 0.001 or odom_dt[gh, 1] < 0.00001:
+                    dmag_gt = np.delete(dmag_gt, gh, axis=0)
+                    odom_dt = np.delete(odom_dt, gh, axis=0)
+                    dmag_h = np.delete(dmag_h, gh, axis=0)
+                    dmag_x = np.delete(dmag_x, gh, axis=0)
+                    dmag_y = np.delete(dmag_y, gh, axis=0)
+                    # print("deleted")
+                    ax += 1
+                    gh -= 1
+            gh += 1
 
-    # # Now print new lengths for check
-    # print(np.shape(dmag_gt))
-    # print(np.shape(dmag_h))
+        # # Now print new lengths for check
+        # print(np.shape(dmag_gt))
+        # print(np.shape(dmag_h))
 
-    lim = 5000
+        lim = 5000
 
-    plt.figure(5)
-    plt.autoscale(enable=True, axis='both', tight=None)
-    plt.title('Distance change for v commands')
-    plt.ylabel('dmag [m]')
-    plt.xlabel('vdt [m]')
-    plt.scatter(odom_dt[:lim, 1], dmag_gt[:lim])
+        plt.figure(5)
+        plt.autoscale(enable=True, axis='both', tight=None)
+        plt.title('Distance change for v commands')
+        plt.ylabel('dmag [m]')
+        plt.xlabel('vdt [m]')
+        plt.scatter(odom_dt[:lim, 1], dmag_gt[:lim])
 
-    plt.figure(6)
-    plt.autoscale(enable=True, axis='both', tight=None)
-    plt.title('Distance change for w commands')
-    plt.ylabel('dmag [m]')
-    plt.xlabel('wdt [rad]')
-    plt.scatter(odom_dt[:lim, 2], dmag_gt[:lim])
+        plt.figure(6)
+        plt.autoscale(enable=True, axis='both', tight=None)
+        plt.title('Distance change for w commands')
+        plt.ylabel('dmag [m]')
+        plt.xlabel('wdt [rad]')
+        plt.scatter(odom_dt[:lim, 2], dmag_gt[:lim])
 
-    plt.figure(7)
-    plt.autoscale(enable=True, axis='both', tight=None)
-    plt.title('Heading change for v commands')
-    plt.ylabel('dhead [rad]')
-    plt.xlabel('vdt [m]')
-    plt.scatter(odom_dt[:lim, 1], dmag_h[:lim])
+        plt.figure(7)
+        plt.autoscale(enable=True, axis='both', tight=None)
+        plt.title('Heading change for v commands')
+        plt.ylabel('dhead [rad]')
+        plt.xlabel('vdt [m]')
+        plt.scatter(odom_dt[:lim, 1], dmag_h[:lim])
 
-    plt.figure(8)
-    plt.autoscale(enable=True, axis='both', tight=None)
-    plt.title('Heading change for w commands')
-    plt.ylabel('dhead [rad]')
-    plt.xlabel('wdt [rad]')
-    plt.scatter(odom_dt[:lim, 2], dmag_h[:lim])
-
-    # plt.show()
+        plt.figure(8)
+        plt.autoscale(enable=True, axis='both', tight=None)
+        plt.title('Heading change for w commands')
+        plt.ylabel('dhead [rad]')
+        plt.xlabel('wdt [rad]')
+        plt.scatter(odom_dt[:lim, 2], dmag_h[:lim])
+        print("Please close the plot to move on \n")
+        plt.show()
 
     return diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt, odom_test
 
@@ -541,6 +641,7 @@ def diffplot(path_x, path_y, ground_truth_xs, ground_truth_ys, dr_xs, dr_ys):
 
     # plt.show()
 
+
 def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth,
               LWLR_m, dead_reck):
 
@@ -548,7 +649,7 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth,
         gt_train, gt_dead, odom_train, odom_test, ground_truth)
 
     # Set range for desired final iteration
-    inc_range = 100  # 6000
+    inc_range = 6000 # 6000
     xm, xmdt, ymabs, ymcart, xmtest = setup(dmag_gt,
                                             dmag_h,
                                             dmag_x,
@@ -668,8 +769,9 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth,
         # Show Legend
         plt.legend()
 
-        diffplot(path_x, path_y, ground_truth_xs, ground_truth_ys, dr_xs, dr_ys)
-
+        diffplot(path_x, path_y, ground_truth_xs, ground_truth_ys, dr_xs,
+                 dr_ys)
+        print("Please close the plot to move on \n")
         plt.show()
 
         yhat1, yhat2 = np.hsplit(yhat, 2)
@@ -681,9 +783,11 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth,
         # print(np.shape(odom_train))
 
         # plot(v, ymabs1, v, yhat1)
-
+    LWLR_m = 0
     if LWLR_m == 0:
         # perform xvalidation
+        diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt, odom_test = remove_outliers(
+            gt_train, gt_dead, odom_train, odom_test, ground_truth, mode=1)
         xm, xmdt, ymabs, ymcart, xmtest = setup(dmag_gt,
                                                 dmag_h,
                                                 dmag_x,
@@ -752,6 +856,7 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth,
                  color='r',
                  label='VAR for heading')
         plt.legend()
+        print("Please close the plot to move on \n")
         plt.show()
 
         print("VAR sum for dmag: {}".format(VAR_d))
@@ -777,11 +882,14 @@ def main():
     # Plot positional error and variance
     # pos_err_var(gt_train, gt_dead, odom_train, odom_test, ground_truth)
 
-    # Remove outliers
-    # diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt, odom_test = remove_outliers(
-    #     gt_train, gt_dead, odom_train, odom_test, ground_truth)
+    # LWLR for Sine Wave
+    print("Plotting LWLR for Sine Wave")
+    main_sine()
 
-    # LWLR
+    print("\n")
+
+    print("Plotting LWLR for Motion Model")
+    # LWLR for Motion Model
     # LWLR Mode: 0, normal, 1, xval
     LWLR_m = 1
     lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth,

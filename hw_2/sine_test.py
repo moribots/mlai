@@ -31,7 +31,7 @@ def sine(cycles, pts, var):
     return x, y
 
 
-def lwlr_pt(x_q, xm, ym, k):
+def lwlr_sine_pt(x_q, xm, ym, k):
     # convert to matrix
     xM = np.mat(xm)
     yM = np.mat(ym)
@@ -56,7 +56,7 @@ def lwlr_pt(x_q, xm, ym, k):
     return x_q * B
 
 
-def lwlr(test, xm, ym, k):
+def lwlr_sine(test, xm, ym, k):
     """ xm: nx(m+1) (col of 1s at end)
         ym: nxm or nx1 for singular
         Beta: (n+1)xm
@@ -66,13 +66,14 @@ def lwlr(test, xm, ym, k):
     y_hat = np.zeros(m)
     for i in range(m):
         # find Beta and hence y_hat for every x_q (test[i])
-        y_hat[i] = lwlr_pt(test[i], xm, ym, k)
+        y_hat[i] = lwlr_sine_pt(test[i], xm, ym, k)
         print("Completed {} of {}".format(i, m))
     return y_hat
 
 
-def plot(x, y, xt, yhat):
+def plot_sine(x, y, xt, yhat):
     # Sine Plot
+    plt.figure(60)
     plt.autoscale(enable=True, axis='both', tight=None)
     plt.title('Noisy Sine Wave LWLR Test')
     plt.ylabel('y')
@@ -106,9 +107,9 @@ def main():
 
     k = 0.05
     # perform LWLR
-    yhat = lwlr(test, xm, ym, k)
+    yhat = lwlr_sine(test, xm, ym, k)
 
-    plot(x, y, x_test, yhat)
+    plot_sine(x, y, x_test, yhat)
 
 
 if __name__ == "__main__":
