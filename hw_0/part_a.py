@@ -18,6 +18,7 @@ mauricerahme2020@u.northwestern.edu
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import csv
 
 
 # Robot class contains position attributes (x, y, theta) and move method
@@ -165,6 +166,11 @@ def a3(odometry, ground_truth, range_response, noise_option):
 
         robot.move(control[t], t_next, noise_matrix)
         path.append(robot.position)
+
+    # Save path to .csv
+    with open("dead_reckoning.csv", "w+") as my_csv:
+            csvWriter = csv.writer(my_csv, delimiter=',')
+            csvWriter.writerows(path)
 
     # Initialize Plot
     plt.autoscale(enable=True, axis='both', tight=None)

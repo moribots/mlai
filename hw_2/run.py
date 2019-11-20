@@ -119,7 +119,8 @@ def lwlr(test, xm, ym, k):
     return y_hat, MSE, VAR
 
 
-def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt, odom_test):
+def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt, odom_test,
+          inc_range, num):
 
     # First turn odom into array
     odom_train = np.array(odom_train)
@@ -171,14 +172,14 @@ def setup(dmag_gt, dmag_h, dmag_x, dmag_y, odom_train, odom_dt, odom_test):
     xmtest = np.hstack((xmtest, ones_coltest))
 
     # Now limit to number of points (lest lwlr take too long)
-    num = 5000  # 5000
+    # num = 500  # 5000
     xm = xm[:num, :]
     xmdt = xmdt[:num, :]
     ymabs = ymabs[:num, :]
     ymcart = ymcart[:num, :]
 
     # Use first few samples from test data
-    xmtest = xmtest[:3000, :]
+    xmtest = xmtest[:inc_range, :]
 
     return xm, xmdt, ymabs, ymcart, xmtest
 
@@ -387,44 +388,44 @@ def remove_outliers(gt_train, gt_dead, odom_train, odom_test, ground_truth):
         gt_dead, gt_train, odom_train, odom_test, ground_truth)
 
     # First turn odom into array
-    odom_dt = np.array(odom_dt)
-    # Max dmag_gt is 0.013
-    # Max dmag_h is 0.10
-    ax = 1
-    gh = 0
-    while gh < len(dmag_gt) - ax:
-        if abs(dmag_gt[gh]) > 0.013 or abs(dmag_h[gh]) > 1:
-            dmag_gt = np.delete(dmag_gt, gh, axis=0)
-            odom_dt = np.delete(odom_dt, gh, axis=0)
-            dmag_h = np.delete(dmag_h, gh, axis=0)
-            dmag_x = np.delete(dmag_x, gh, axis=0)
-            dmag_y = np.delete(dmag_y, gh, axis=0)
-            # print("deleted")
-            ax += 1
-            gh -= 1
-        gh += 1
-        # if gh % 1000 == 0:
-        #     print(gh)
-    # Now do the same for the vertical spikes at 0 for w
-    ax = 1
-    gh = 0
-    while gh < len(dmag_gt) - ax:
-        if abs(dmag_gt[gh]) > 0.003 or abs(dmag_h[gh]) > 0.003:
-            if odom_dt[gh, 2] > -0.001 and odom_dt[gh, 2] < 0.001 or odom_dt[
-                    gh, 1] < 0.00001:
-                dmag_gt = np.delete(dmag_gt, gh, axis=0)
-                odom_dt = np.delete(odom_dt, gh, axis=0)
-                dmag_h = np.delete(dmag_h, gh, axis=0)
-                dmag_x = np.delete(dmag_x, gh, axis=0)
-                dmag_y = np.delete(dmag_y, gh, axis=0)
-                # print("deleted")
-                ax += 1
-                gh -= 1
-        gh += 1
+    # odom_dt = np.array(odom_dt)
+    # # Max dmag_gt is 0.013
+    # # Max dmag_h is 0.10
+    # ax = 1
+    # gh = 0
+    # while gh < len(dmag_gt) - ax:
+    #     if abs(dmag_gt[gh]) > 0.013 or abs(dmag_h[gh]) > 1:
+    #         dmag_gt = np.delete(dmag_gt, gh, axis=0)
+    #         odom_dt = np.delete(odom_dt, gh, axis=0)
+    #         dmag_h = np.delete(dmag_h, gh, axis=0)
+    #         dmag_x = np.delete(dmag_x, gh, axis=0)
+    #         dmag_y = np.delete(dmag_y, gh, axis=0)
+    #         # print("deleted")
+    #         ax += 1
+    #         gh -= 1
+    #     gh += 1
+    #     # if gh % 1000 == 0:
+    #     #     print(gh)
+    # # Now do the same for the vertical spikes at 0 for w
+    # ax = 1
+    # gh = 0
+    # while gh < len(dmag_gt) - ax:
+    #     if abs(dmag_gt[gh]) > 0.003 or abs(dmag_h[gh]) > 0.003:
+    #         if odom_dt[gh, 2] > -0.001 and odom_dt[gh, 2] < 0.001 or odom_dt[
+    #                 gh, 1] < 0.00001:
+    #             dmag_gt = np.delete(dmag_gt, gh, axis=0)
+    #             odom_dt = np.delete(odom_dt, gh, axis=0)
+    #             dmag_h = np.delete(dmag_h, gh, axis=0)
+    #             dmag_x = np.delete(dmag_x, gh, axis=0)
+    #             dmag_y = np.delete(dmag_y, gh, axis=0)
+    #             # print("deleted")
+    #             ax += 1
+    #             gh -= 1
+    #     gh += 1
 
-    # Now print new lengths for check
-    print(np.shape(dmag_gt))
-    print(np.shape(dmag_h))
+    # # Now print new lengths for check
+    # print(np.shape(dmag_gt))
+    # print(np.shape(dmag_h))
 
     lim = 5000
 
@@ -480,27 +481,35 @@ def lwlr_crossval(test, xm, ym, k):
     return y_hat, MSE, VAR
 
 
-def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth, LWLR_m):
+def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth,
+              LWLR_m, dead_reck):
 
     diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt, odom_test = remove_outliers(
         gt_train, gt_dead, odom_train, odom_test, ground_truth)
 
-    # plot_viz(odom_train, diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt)
-
-    xm, xmdt, ymabs, ymcart, xmtest = setup(dmag_gt, dmag_h, dmag_x, dmag_y,
-                                            odom_train, odom_dt, odom_test)
+    # Set range for desired final iteration
+    inc_range = 6000
+    xm, xmdt, ymabs, ymcart, xmtest = setup(dmag_gt,
+                                            dmag_h,
+                                            dmag_x,
+                                            dmag_y,
+                                            odom_train,
+                                            odom_dt,
+                                            odom_test,
+                                            inc_range,
+                                            num=500)
 
     k = 8e-05  # 8e-05
 
-    if LWLR_m == 0:
+    if LWLR_m == 1:
         # perform LWLR
         yhat, MSE, VAR = lwlr(xmtest, xmdt, ymabs, k)
         print(np.shape(MSE))
         print(np.shape(VAR))
 
-        # with open("yhat.csv", "w+") as my_csv:
-        #     csvWriter = csv.writer(my_csv, delimiter=',')
-        #     csvWriter.writerows(yhat)
+        with open("yhat.csv", "w+") as my_csv:
+            csvWriter = csv.writer(my_csv, delimiter=',')
+            csvWriter.writerows(yhat)
 
         # with open("xmtest.csv", "w+") as my_csv:
         #     csvWriter = csv.writer(my_csv, delimiter=',')
@@ -524,12 +533,11 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth, L
         plt.ylabel('y [m]')
         plt.xlabel('x [m]')
 
-        # Set range for desired final iteration
-        inc_range = 3000
         # Plot lwlr
         path_x = [px[0] for px in path]
         path_y = [py[1] for py in path]
         plt.plot(path_x, path_y, '-k', label='LWLR Data')
+
         # Plot Ground Truth Data
         ground_truth_x = [gx[1] for gx in ground_truth]
         ground_truth_y = [gy[2] for gy in ground_truth]
@@ -541,11 +549,31 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth, L
             ground_truth_xs.append(ground_truth_x[ggx])
         for ggy in range(inc_range):
             ground_truth_ys.append(ground_truth_y[ggy])
-        plt.plot(ground_truth_xs, ground_truth_ys, '-g', label='Ground Truth Data')
+        plt.plot(ground_truth_xs,
+                 ground_truth_ys,
+                 '-g',
+                 label='Ground Truth Data')
         # Append final index of reduced range to
         # full range for plotting
         ground_truth_x.append(ground_truth_xs[-1])
         ground_truth_y.append(ground_truth_ys[-1])
+
+        # Plot DR Data
+        dr_x = [dx[0] for dx in dead_reck]
+        dr_y = [dy[1] for dy in dead_reck]
+
+        # Dead Reckoning
+        dr_xs = []
+        dr_ys = []
+        for ddx in range(inc_range):
+            dr_xs.append(dr_x[ddx])
+        for ddy in range(inc_range):
+            dr_ys.append(dr_y[ddy])
+        plt.plot(dr_xs, dr_ys, '-r', label='Dead Reckoning Data')
+        # Append final index of reduced range to
+        # full range for plotting
+        dr_x.append(dr_xs[-1])
+        dr_y.append(dr_ys[-1])
 
         # Plot inital position (Both)
         plt.plot(path_x[0],
@@ -555,7 +583,7 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth, L
                  markersize=10,
                  label='Starting Point')
 
-        # Plot final position (Dead Reckoning)
+        # Plot final position (LWLR)
         plt.plot(path_x[-1],
                  path_y[-1],
                  color='darkviolet',
@@ -570,6 +598,13 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth, L
                  marker='o',
                  markersize=5)
 
+        # Plot final position (DR)
+        plt.plot(dr_x[-1],
+                 dr_y[-1],
+                 color='darkviolet',
+                 marker='o',
+                 markersize=5)
+
         # Show Legend
         plt.legend()
 
@@ -578,15 +613,24 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth, L
         yhat1, yhat2 = np.hsplit(yhat, 2)
         ymabs1, ymabs2 = np.hsplit(ymabs, 2)
         v, w, xm3 = np.hsplit(xmdt, 3)
-        test2, test3, test4 = np.hsplit(test1, 3)
+        # test2, test3, test4 = np.hsplit(test1, 3)
 
         # print(np.shape(ymabs1))
         # print(np.shape(odom_train))
 
         # plot(v, ymabs1, v, yhat1)
 
-    if LWLR_m == 1:
+    if LWLR_m == 0:
         # perform xvalidation
+        xm, xmdt, ymabs, ymcart, xmtest = setup(dmag_gt,
+                                                dmag_h,
+                                                dmag_x,
+                                                dmag_y,
+                                                odom_train,
+                                                odom_dt,
+                                                odom_test,
+                                                inc_range,
+                                                num=5000)
         yhat_x, MSE_x, VAR_x = lwlr_crossval(xmdt, xmdt, ymabs, k)
 
         MSE_xd, MSE_xh = np.hsplit(MSE_x, 2)
@@ -618,6 +662,7 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth, L
 
         # Plot MSE
         plt.figure(101)
+        plt.autoscale(enable=True, axis='both', tight=None)
         plt.title("Mean Square Error for each x_q")
         plt.ylabel('MSE')
         plt.xlabel('x_q element')
@@ -632,6 +677,7 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth, L
 
         # Plot VAR
         plt.figure(102)
+        plt.autoscale(enable=True, axis='both', tight=None)
         plt.title("Variance for each x_q")
         plt.ylabel('VAR')
         plt.xlabel('x_q element')
@@ -658,6 +704,7 @@ def main():
     gt_dead = np.loadtxt(open("gt_deadreck.csv"), delimiter=",")
     odom_train = np.loadtxt(open("odom_train.csv"), delimiter=",")
     odom_dt = np.loadtxt(open("odom_dt.csv"), delimiter=",")
+    dead_reck = np.loadtxt(open("dead_reckoning.csv"), delimiter=",")
     odom_test = read_dat(
         3, "ds0/ds0_Odometry.dat",
         ["Time [s]", "forward velocity [m/s]", "angular velocity[rad/s]"])
@@ -675,7 +722,8 @@ def main():
     # LWLR
     # LWLR Mode: 0, normal, 1, xval
     LWLR_m = 1
-    lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth, LWLR_m)
+    lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth,
+              LWLR_m, dead_reck)
 
 
 if __name__ == "__main__":
