@@ -481,6 +481,66 @@ def lwlr_crossval(test, xm, ym, k):
     return y_hat, MSE, VAR
 
 
+def diffplot(path_x, path_y, ground_truth_xs, ground_truth_ys, dr_xs, dr_ys):
+
+    # Convert to np arrays
+    path_x = np.array(path_x)
+    path_x = np.delete(path_x, -1, axis=0)
+    path_y = np.array(path_y)
+    path_y = np.delete(path_y, -1, axis=0)
+    ground_truth_xs = np.array(ground_truth_xs)
+    ground_truth_ys = np.array(ground_truth_ys)
+    dr_xs = np.array(dr_xs)
+    dr_ys = np.array(dr_ys)
+
+    # Difference in x
+    diff_x_lwlr = path_x - ground_truth_xs
+    diff_x_dr = dr_xs - ground_truth_xs
+
+    # Difference in y
+    diff_y_lwlr = path_y - ground_truth_ys
+    diff_y_dr = dr_ys - ground_truth_ys
+
+    # Difference magnitude
+    dmag_lwlr = np.sqrt(np.square(diff_x_lwlr) + np.square(diff_y_lwlr))
+    dmag_dr = np.sqrt(np.square(diff_x_dr) + np.square(diff_y_dr))
+
+    # Difference in h
+    # diff_h_lwlr = path[:, 2] - ground_truth[:, 3]
+    # diff_h_dr = dead_reck[:, 2] - ground_truth[:, 3]
+
+    # Plot dmag
+    plt.figure(50)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Distance magnitude error in LWLR')
+    plt.ylabel('dmag [m]')
+    plt.xlabel('iteration')
+    plt.scatter(range(len(dmag_lwlr)), dmag_lwlr)
+
+    plt.figure(51)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Distance magnitude error in Dead Reckoning')
+    plt.ylabel('dmag [m]')
+    plt.xlabel('iteration')
+    plt.scatter(range(len(dmag_dr)), dmag_dr)
+
+    # # Plot diff_h
+    # plt.figure(52)
+    # plt.autoscale(enable=True, axis='both', tight=None)
+    # plt.title('Heading error in LWLR')
+    # plt.ylabel('diff_h [rad]')
+    # plt.xlabel('iteration')
+    # plt.scatter(range(len(diff_h_lwlr)), diff_h_lwlr)
+
+    # plt.figure(53)
+    # plt.autoscale(enable=True, axis='both', tight=None)
+    # plt.title('Heading error in Dead Reckoning')
+    # plt.ylabel('diff_h [rad]')
+    # plt.xlabel('iteration')
+    # plt.scatter(range(len(diff_h_dr)), diff_h_dr)
+
+    # plt.show()
+
 def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth,
               LWLR_m, dead_reck):
 
@@ -488,7 +548,7 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth,
         gt_train, gt_dead, odom_train, odom_test, ground_truth)
 
     # Set range for desired final iteration
-    inc_range = 6000
+    inc_range = 100  # 6000
     xm, xmdt, ymabs, ymcart, xmtest = setup(dmag_gt,
                                             dmag_h,
                                             dmag_x,
@@ -607,6 +667,8 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth,
 
         # Show Legend
         plt.legend()
+
+        diffplot(path_x, path_y, ground_truth_xs, ground_truth_ys, dr_xs, dr_ys)
 
         plt.show()
 
