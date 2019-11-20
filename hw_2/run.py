@@ -624,6 +624,9 @@ def diffplot(path_x, path_y, ground_truth_xs, ground_truth_ys, dr_xs, dr_ys):
     plt.xlabel('iteration')
     plt.scatter(range(len(dmag_dr)), dmag_dr)
 
+    print("Average error for LWLR position magnitude: {}".format(np.mean(dmag_lwlr)))
+    print("Average error for Dead Reckoning position magnitude: {}".format(np.mean(dmag_dr)))
+
     # # Plot diff_h
     # plt.figure(52)
     # plt.autoscale(enable=True, axis='both', tight=None)
@@ -785,6 +788,7 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth,
         # plot(v, ymabs1, v, yhat1)
     LWLR_m = 0
     if LWLR_m == 0:
+        print("Plotting LOOCV Test")
         # perform xvalidation
         diff_dmag, diff_head, dmag_gt, dmag_x, dmag_y, dmag_h, odom_dt, odom_test = remove_outliers(
             gt_train, gt_dead, odom_train, odom_test, ground_truth, mode=1)
