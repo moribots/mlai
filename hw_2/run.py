@@ -816,7 +816,7 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth,
         MSE_xh = MSE_xh.flatten()
 
         VAR_xd = VAR_xd.flatten()
-        VAR_xh = VAR_xd.flatten()
+        VAR_xh = VAR_xh.flatten()
 
         MSE_xd = MSE_xd.tolist()
         MSE_xh = MSE_xh.tolist()
