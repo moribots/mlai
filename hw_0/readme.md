@@ -15,7 +15,7 @@ The libraries used for this code are:
 
 **PLEASE MAKE SURE TO RUN THE FILE IN THE ```hw_0``` DIRECTORY ON YOUR TERMINAL**
 ****
-<!-- ## Coded Exercises
+## Coded Exercises
 When you run ``` ./run.py ``` (after writing the command: ``` chmod +x run.py ```), you will be prompted to select an exercise: 2, 3, or 6. The numbering corresponds to the labeling in the homework description. You can also run the executable using ``` run run.py ```.
 ### Exercise 2:
 
@@ -60,11 +60,10 @@ PF with Odometry Data:
 
 ![PF3 Plot](fullPF.png)
 
-PF limited Odometry Plot:
+PF Snapshot pre-measurement:
 
-![PF3 Plot](theta_1.5.png)
+![PF3 Plot](spread.png)
 
-PF with no measurement Plot:
+PF Snapshot post-measurement:
 
-![PF3 Plot](PF_no_mes.png)
- -->
+![PF3 Plot](narrow.png)
