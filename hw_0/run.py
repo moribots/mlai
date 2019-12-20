@@ -242,9 +242,9 @@ def pf(controls, ground_truth, barcodes, landmarks_gt, sensor_mes, animate):
     start_time = time.time()
 
     # Subtract starting time to make data more legible
-    sensor_mes[:, 0] = sensor_mes[:, 0] - 1288971840
-    controls[:, 0] = controls[:, 0] - 1288971840
-    ground_truth[:, 0] = ground_truth[:, 0] - 1288971840
+    sensor_mes[:, 0] -= 1288971840
+    controls[:, 0] -= 1288971840
+    ground_truth[:, 0] -= 1288971840
 
     sensor_mes = barcode_swap(sensor_mes)
 
@@ -292,7 +292,7 @@ def pf(controls, ground_truth, barcodes, landmarks_gt, sensor_mes, animate):
     # initialise ground truth counter for plotting
     gt = 0
     # Position model update step
-    iterations = 2000  # len(controls) - 1
+    iterations = 11520
     for i in range(iterations):
 
         measure_avail = True
@@ -347,12 +347,8 @@ def pf(controls, ground_truth, barcodes, landmarks_gt, sensor_mes, animate):
                     mean_traj = np.append(mean_traj,
                                           np.array([curr_mean[:3]]),
                                           axis=0)
-                    # start from this measurement next time
-                    j += 1
-                # If robot measured instead of landmark
-                else:
-                    # start from this measurement next time
-                    j += 1
+                # start from this measurement next time
+                j += 1
             else:
                 # Position update with no measurement update
                 curr_mean = np.mean(pos_est[:, :3], axis=0)
@@ -404,7 +400,7 @@ def pf(controls, ground_truth, barcodes, landmarks_gt, sensor_mes, animate):
                                          marker='o',
                                          s=1,
                                          label='Current state set')
-            plt.title('State Estimation with PF')
+            plt.title('State Estimation with Particle Filter')
             plt.legend([
                 groundtruth_xy,
                 est_traj,
@@ -413,7 +409,8 @@ def pf(controls, ground_truth, barcodes, landmarks_gt, sensor_mes, animate):
                 dr_traj,
             ], [
                 'Groundtruth', 'Filter', 'Start', 'Particles', 'Dead Reckoning'
-            ], loc="upper left")
+            ],
+                       loc="upper left")
             plt.ylim(-5.2, -2)
             plt.xlim(0.8, 4.3)
             # Get current plot
@@ -430,29 +427,34 @@ def pf(controls, ground_truth, barcodes, landmarks_gt, sensor_mes, animate):
         groundtruth_xy, = plt.plot(ground_truth[:, 1],
                                    ground_truth[:, 2],
                                    'g',
-                                   label='Groundtruth (x,y)')
+                                   label='Groundtruth')
         est_traj, = plt.plot(mean_traj[:, 0],
                              mean_traj[:, 1],
                              color='darkviolet',
-                             label='Estimated (x,y)')
+                             label='Particle Filter')
+
+        # print(dr[0])
+
+        dr_traj, = plt.plot(dr[:, 0],
+                            dr[:, 1],
+                            color='red',
+                            label='Dead Reckoning')
+
         initial_state, = plt.plot(init_pos[0],
                                   init_pos[1],
                                   color='gold',
                                   label='Start')
-        lm_groundtruth_plot, = plt.plot(landmarks_gt[:, 1],
-                                        landmarks_gt[:, 2],
-                                        'k*',
-                                        label='Landmarks')
-        plt.title('Ground Truth VS. Dead Reckoning VS. Particle Filter')
-        plt.legend(
-            [groundtruth_xy, est_traj, initial_state, lm_groundtruth_plot],
-            ['Groundtruth (x,y)', 'Estimated (x,y)', 'Start', 'Landmarks'])
+        lm_groundtruth_plot = plt.scatter(landmarks_gt[:, 1],
+                                          landmarks_gt[:, 2],
+                                          c='black',
+                                          marker='o',
+                                          label='Landmarks')
+        plt.title('Ground Truth VS. Dead Reckoning')
+        plt.legend([groundtruth_xy, dr_traj, lm_groundtruth_plot, est_traj],
+                   ['Groundtruth', 'Dead Reckoning', 'Landmarks', 'Filter'])
         plt.xlabel('x')
         plt.ylabel('y')
         plt.show()
-
-    #anim = animation.FuncAnimation(fig, animate, init_func=init,
-    #                           frames=100, interval=20, blit=True)
 
     print('Runtime: %s seconds. \n' % (time.time() - start_time))
     print('Saving mean trajectory to text file mean_traj.txt... \n')
