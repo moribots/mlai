@@ -1,5 +1,5 @@
 # Machine Learning & Artificial Intelligence, ME 469
-## Homework 0, Part A
+## Homework 0
 ### Maurice Rahme
 ### Student ID: 3219435
 
