@@ -4,7 +4,7 @@
 ### Student ID: 3219435
 
 ### Assigned Filter: Particle Filter
-### Assigned Data Set: ds0
+### Assigned Data Set: ds1
 
 ****
 ## Dependencies
@@ -12,11 +12,10 @@ The code for this submission is written in Python 2.7 using PEP8 Styling.
 The libraries used for this code are:
 * ``` Numpy ```
 * ``` Matplotlib ```
-* ``` Pandas ```
 
 **PLEASE MAKE SURE TO RUN THE FILE IN THE ```hw_0``` DIRECTORY ON YOUR TERMINAL**
 ****
-## Coded Exercises
+<!-- ## Coded Exercises
 When you run ``` ./run.py ``` (after writing the command: ``` chmod +x run.py ```), you will be prompted to select an exercise: 2, 3, or 6. The numbering corresponds to the labeling in the homework description. You can also run the executable using ``` run run.py ```.
 ### Exercise 2:
 
@@ -68,3 +67,4 @@ PF limited Odometry Plot:
 PF with no measurement Plot:
 
 ![PF3 Plot](PF_no_mes.png)
+ -->
