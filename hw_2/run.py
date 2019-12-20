@@ -671,7 +671,7 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth,
         print(np.shape(MSE))
         print(np.shape(VAR))
 
-        with open("yhat.csv", "w+") as my_csv:
+        with open("yhat_final.csv", "w+") as my_csv:
             csvWriter = csv.writer(my_csv, delimiter=',')
             csvWriter.writerows(yhat)
 
@@ -803,6 +803,8 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth,
                                                 num=5000)
         yhat_x, MSE_x, VAR_x = lwlr_crossval(xmdt, xmdt, ymabs, k)
 
+        plot_x(xmdt, yhat_x, ymabs)
+
         MSE_xd, MSE_xh = np.hsplit(MSE_x, 2)
         VAR_xd, VAR_xh = np.hsplit(VAR_x, 2)
 
@@ -868,6 +870,50 @@ def lwlr_main(gt_train, gt_dead, odom_train, odom_dt, odom_test, ground_truth,
         # print(np.shape(yhat_x))
         # print(np.shape(MSE_x))
         # print(np.shape(VAR_x))
+
+
+def plot_x(xmdt, yhat, ymabs):
+    # Test Input
+    v_dt = xmdt[:, 0]
+    w_dt = xmdt[:, 1]
+
+    dtest = yhat[:, 0]
+    htest = yhat[:, 1]
+
+    dtrain = ymabs[:, 0]
+    htrain = ymabs[:, 0]
+
+    plt.figure(1)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Distance Change vs. Commanded velocity')
+    plt.ylabel('Distance Magnitude [m]')
+    plt.xlabel('v*dt [m]')
+    plt.scatter(v_dt, dtrain, color='b', label='Training Data')
+    plt.scatter(v_dt, dtest, color='r', label='LWLR Fit')
+
+    plt.figure(2)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Distance Change vs. Commanded velocity')
+    plt.ylabel('Distance Magnitude [m]')
+    plt.xlabel('w*dt [rad]')
+    plt.scatter(w_dt, dtrain, color='b', label='Training Data')
+    plt.scatter(w_dt, dtest, color='r', label='LWLR Fit')
+
+    plt.figure(3)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Heading Change vs. Commanded velocity')
+    plt.ylabel('Heading [rad]')
+    plt.xlabel('v*dt [m]')
+    plt.scatter(v_dt, htrain, color='b', label='Training Data')
+    plt.scatter(v_dt, htest, color='r', label='LWLR Fit')
+
+    plt.figure(4)
+    plt.autoscale(enable=True, axis='both', tight=None)
+    plt.title('Heading Change vs. Commanded velocity')
+    plt.ylabel('Heading [rad]')
+    plt.xlabel('w*dt [rad]')
+    plt.scatter(w_dt, htrain, color='b', label='Training Data')
+    plt.scatter(w_dt, htest, color='r', label='LWLR Fit')
 
 
 def main():

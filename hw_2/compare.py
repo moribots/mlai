@@ -3,9 +3,9 @@
 # use ./file_name.py to run
 """
 Python 2.7 PEP8 Style
-Code submission for Homework 2 Part A
+Code submission for Homework 3
 Machine Learning & Artificial Intelligence for Robotics
-Data Set 0
+Data Set 1
 Locally Weighted Linear Regression for Motion Model Estimation
 
 Data interpreted with Python's Pandas library
@@ -278,6 +278,9 @@ def main():
     y_hat, MSE, VAR = lwlr(xm_test, xm_train, ym_train, k)
     # LWLR XVal Test
     y_hat_x, MSE_x, VAR_x = lwlr_crossval(xm_xval, xm_xval, ym_xval, k)
+
+    print("MSE sum: {}".format(sum(MSE_x)))
+    print("VAR sum: {}".format(sum(VAR_x)))
 
     # Create CSV File for Fit
     with open("yhat.csv", "w+") as my_csv:
