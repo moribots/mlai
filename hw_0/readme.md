@@ -62,8 +62,8 @@ PF with Odometry Data:
 
 PF Snapshot pre-measurement:
 
-![PF3 Plot](spread.png)
+![PF3 Plot](pf_spread.png)
 
 PF Snapshot post-measurement:
 
-![PF3 Plot](narrow.png)
+![PF3 Plot](pf_narrow.png)
